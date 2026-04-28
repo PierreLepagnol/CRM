@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(bun run *)",
+      "Bash(npx tsc *)",
+      "Bash(bunx tsc *)",
+      "Bash(bunx next *)",
+      "Bash(git add *)",
+      "Bash(git -c user.name=\"claude\" -c user.email=\"noreply@anthropic.com\" commit -m \"wip: pre-shadcn-refactor snapshot\")",
+      "Bash(bunx --bun shadcn@latest init --preset b0 --base base --template next)",
+      "Bash(bunx --bun shadcn@latest init --preset b0 --base base --template next --force)",
+      "Bash(yes)",
+      "Bash(bunx --bun shadcn@latest add button input label dialog dropdown-menu skeleton sonner card --overwrite --yes)",
+      "Bash(bun add *)"
+    ]
+  }
+}
