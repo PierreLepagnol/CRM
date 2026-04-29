@@ -21,6 +21,7 @@ import {
   Settings,
   Users,
 } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -41,9 +42,21 @@ export function AppSidebar() {
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader>
-        <div className="flex items-center gap-2 px-2 py-1 font-semibold tracking-tight">
-          <Kanban className="size-5 shrink-0" />
-          <span className="group-data-[collapsible=icon]:hidden">CRM</span>
+        <div className="flex items-center gap-2 px-2 py-1">
+          <Image
+            src="/LogoSCIAM-white.webp"
+            alt="SCIAM"
+            width={120}
+            height={32}
+            className="h-8 w-auto group-data-[collapsible=icon]:hidden"
+          />
+          <Image
+            src="/LogoSCIAM-white.webp"
+            alt="SCIAM"
+            width={32}
+            height={32}
+            className="hidden size-5 object-contain group-data-[collapsible=icon]:block"
+          />
         </div>
       </SidebarHeader>
 
