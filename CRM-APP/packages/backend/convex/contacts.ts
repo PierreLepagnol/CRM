@@ -1,7 +1,7 @@
 import { paginationOptsValidator } from "convex/server";
 import { v } from "convex/values";
 
-import type { Id } from "./_generated/dataModel";
+import type { Doc, Id } from "./_generated/dataModel";
 import { mutation, query } from "./_generated/server";
 import type { MutationCtx } from "./_generated/server";
 import { requireUserId } from "./lib/auth";
@@ -105,7 +105,7 @@ export const listByDeal = query({
             .map((link) => link.contact_id)
         : deal.contacts_ids;
     const contacts = await Promise.all(contactIds.map((id) => ctx.db.get(id)));
-    return contacts.filter((contact) => contact !== null && contact.deleted_at === undefined);
+    return contacts.filter((contact): contact is Doc<"contacts"> => contact !== null && contact.deleted_at === undefined);
   },
 });
 
