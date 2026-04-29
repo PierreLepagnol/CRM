@@ -132,7 +132,9 @@ export function KanbanBoard({
       onDragStart={onDragStart}
       onDragEnd={onDragEnd}
     >
-      <div className="-mx-4 flex gap-3 overflow-x-auto px-4 pb-2">{children}</div>
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(18rem,1fr))] gap-3 pb-2">
+        {children}
+      </div>
       <DragOverlay>{overlay}</DragOverlay>
     </DndContext>
   );
@@ -157,7 +159,7 @@ export function KanbanColumn<TItem extends ItemWithId>({
     <section
       ref={setNodeRef}
       className={cn(
-        "flex w-72 shrink-0 flex-col rounded-lg border bg-muted/30 transition-colors",
+        "flex min-w-0 flex-col rounded-lg border bg-muted/30 transition-colors",
         isOver && "border-foreground/30 bg-muted/60",
       )}
     >
@@ -208,9 +210,9 @@ export function SortableItem({
 
 export function KanbanSkeleton({ columns }: { columns: readonly { id: string; label: string }[] }) {
   return (
-    <div className="-mx-4 flex gap-3 overflow-x-auto px-4 pb-2">
+    <div className="grid grid-cols-[repeat(auto-fit,minmax(18rem,1fr))] gap-3 pb-2">
       {columns.map((col) => (
-        <section key={col.id} className="flex w-72 shrink-0 flex-col rounded-lg border bg-muted/30">
+        <section key={col.id} className="flex min-w-0 flex-col rounded-lg border bg-muted/30">
           <header className="flex items-center justify-between border-b px-3 py-2 text-sm font-medium">
             <span>{col.label}</span>
             <Skeleton className="h-3 w-6" />
