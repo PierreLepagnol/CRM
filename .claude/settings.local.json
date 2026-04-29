@@ -11,7 +11,18 @@
       "Bash(bunx --bun shadcn@latest init --preset b0 --base base --template next --force)",
       "Bash(yes)",
       "Bash(bunx --bun shadcn@latest add button input label dialog dropdown-menu skeleton sonner card --overwrite --yes)",
-      "Bash(bun add *)"
+      "Bash(bun add *)",
+      "Bash(bunx --bun shadcn@latest add sheet textarea separator badge --overwrite --yes)",
+      "Bash(git -C CRM-APP remote -v)",
+      "Bash(git -C CRM-APP log --oneline -3)",
+      "Bash(git -C /c/Users/PierreLepagnol/CRM/CRM-APP remote -v)",
+      "Bash(git -C /c/Users/PierreLepagnol/CRM/CRM-APP log --oneline -3)",
+      "Bash(git -C /c/Users/PierreLepagnol/CRM/CRM-APP log --oneline)",
+      "Bash(git rm *)",
+      "Bash(git -C /c/Users/PierreLepagnol/CRM rm --cached CRM-APP)",
+      "Bash(git -C /c/Users/PierreLepagnol/CRM add CRM-APP/)",
+      "Bash(git *)",
+      "Bash(sort -t: -k1,3)"
     ]
   }
 }

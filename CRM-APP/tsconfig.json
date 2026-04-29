@@ -1,3 +1,0 @@
-{
-  "extends": "@CRM-APP/config/tsconfig.base.json"
-}
