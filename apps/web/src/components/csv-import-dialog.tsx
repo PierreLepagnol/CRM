@@ -17,7 +17,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@CRM-APP/ui/components/select";
-import { useMutation, useQuery } from "convex/react";
+import { useConvexAuth, useMutation, useQuery } from "convex/react";
 import { Upload, X } from "lucide-react";
 import { useCallback, useState } from "react";
 import { toast } from "sonner";
@@ -125,12 +125,13 @@ export function CsvImportDialog({ open, onClose, file: initialFile }: Props) {
   const [importing, setImporting] = useState(false);
   const [result, setResult] = useState<{ created: number; errors: number } | null>(null);
 
+  const { isAuthenticated } = useConvexAuth();
   const createSociete = useMutation(api.societes.create);
   const createContact = useMutation(api.contacts.create);
   const createDeal = useMutation(api.deals.create);
-  const societes = useQuery(api.societes.listForPicker, {});
-  const contacts = useQuery(api.contacts.listForPicker, {});
-  const deals = useQuery(api.deals.listForKanban, {});
+  const societes = useQuery(api.societes.listForPicker, isAuthenticated ? {} : "skip");
+  const contacts = useQuery(api.contacts.listForPicker, isAuthenticated ? {} : "skip");
+  const deals = useQuery(api.deals.listForKanban, isAuthenticated ? {} : "skip");
 
   const loadFile = useCallback(async (f: File, ent: EntityType) => {
     const text = await f.text();

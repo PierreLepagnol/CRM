@@ -22,7 +22,7 @@ import {
   SelectValue,
 } from "@CRM-APP/ui/components/select";
 import { Textarea } from "@CRM-APP/ui/components/textarea";
-import { useMutation, useQuery } from "convex/react";
+import { useConvexAuth, useMutation, useQuery } from "convex/react";
 import { Plus } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -83,7 +83,8 @@ function NewDealForm({
   onSuccess: () => void;
   onCancel: () => void;
 }) {
-  const societes = useQuery(api.societes.listForPicker);
+  const { isAuthenticated } = useConvexAuth();
+  const societes = useQuery(api.societes.listForPicker, isAuthenticated ? {} : "skip");
   const createDeal = useMutation(api.deals.create);
   const createSociete = useMutation(api.societes.create);
 

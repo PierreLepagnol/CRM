@@ -22,7 +22,7 @@ import {
   SelectValue,
 } from "@CRM-APP/ui/components/select";
 import { Textarea } from "@CRM-APP/ui/components/textarea";
-import { useMutation, useQuery } from "convex/react";
+import { useConvexAuth, useMutation, useQuery } from "convex/react";
 import { Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -78,9 +78,10 @@ function LogReunionForm({
   onSuccess: () => void;
   onCancel: () => void;
 }) {
-  const contacts = useQuery(api.contacts.listForPicker, {});
-  const societes = useQuery(api.societes.listForPicker, {});
-  const deals = useQuery(api.deals.listForKanban, {});
+  const { isAuthenticated } = useConvexAuth();
+  const contacts = useQuery(api.contacts.listForPicker, isAuthenticated ? {} : "skip");
+  const societes = useQuery(api.societes.listForPicker, isAuthenticated ? {} : "skip");
+  const deals = useQuery(api.deals.listForKanban, isAuthenticated ? {} : "skip");
   const create = useMutation(api.reunions.create);
 
   const todayStr = new Date().toISOString().slice(0, 10);

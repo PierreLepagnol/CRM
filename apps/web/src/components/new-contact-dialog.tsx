@@ -21,7 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@CRM-APP/ui/components/select";
-import { useMutation, useQuery } from "convex/react";
+import { useConvexAuth, useMutation, useQuery } from "convex/react";
 import { Plus } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -71,7 +71,8 @@ function NewContactForm({
   onSuccess: (id: string) => void;
   onCancel: () => void;
 }) {
-  const societes = useQuery(api.societes.listForPicker);
+  const { isAuthenticated } = useConvexAuth();
+  const societes = useQuery(api.societes.listForPicker, isAuthenticated ? {} : "skip");
   const create = useMutation(api.contacts.create);
 
   const [prenom, setPrenom] = useState("");
