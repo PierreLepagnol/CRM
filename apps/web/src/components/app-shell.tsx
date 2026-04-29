@@ -1,20 +1,19 @@
 "use client";
 
-import { useCallback, useState } from "react";
 import type { ReactNode } from "react";
 
-import { Button } from "@CRM-APP/ui/components/button";
+import { api } from "@CRM-APP/backend/convex/_generated/api";
 import { Separator } from "@CRM-APP/ui/components/separator";
 import {
   SidebarInset,
   SidebarProvider,
   SidebarTrigger,
 } from "@CRM-APP/ui/components/sidebar";
-import { Search } from "lucide-react";
+import { useConvexAuth, useQuery } from "convex/react";
+import { Bell } from "lucide-react";
+import Link from "next/link";
 
 import { AppSidebar } from "./app-sidebar";
-import { CommandPalette } from "./command-palette";
-import { CsvImportDialog } from "./csv-import-dialog";
 import { ModeToggle } from "./mode-toggle";
 
 type AppShellProps = {
@@ -24,32 +23,10 @@ type AppShellProps = {
 };
 
 export function AppShell({ title, actions, children }: AppShellProps) {
-  const [csvFile, setCsvFile] = useState<File | null>(null);
-  const [csvOpen, setCsvOpen] = useState(false);
-
-  const onDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    const f = Array.from(e.dataTransfer.files).find(
-      (file) => file.name.endsWith(".csv") || file.type === "text/csv",
-    );
-    if (f) { setCsvFile(f); setCsvOpen(true); }
-  }, []);
-
   return (
     <SidebarProvider className="h-svh">
       <AppSidebar />
-      <SidebarInset
-        className="overflow-hidden"
-        onDragOver={(e) => e.preventDefault()}
-        onDrop={onDrop}
-      >
-        <CommandPalette />
-        <CsvImportDialog
-          open={csvOpen}
-          onClose={() => { setCsvOpen(false); setCsvFile(null); }}
-          file={csvFile ?? undefined}
-        />
-
+      <SidebarInset className="overflow-hidden">
         <header className="flex h-14 shrink-0 items-center justify-between gap-2 border-b px-4">
           <div className="flex items-center gap-2">
             <SidebarTrigger className="-ml-1" />
@@ -60,10 +37,11 @@ export function AppShell({ title, actions, children }: AppShellProps) {
           </div>
           <div className="flex items-center gap-2">
             {actions}
-            <SearchButton />
             <ModeToggle />
           </div>
         </header>
+
+        <RelanceAlertBar />
 
         <div className="flex-1 overflow-auto">{children}</div>
       </SidebarInset>
@@ -71,21 +49,29 @@ export function AppShell({ title, actions, children }: AppShellProps) {
   );
 }
 
-function SearchButton() {
+function RelanceAlertBar() {
+  const { isAuthenticated } = useConvexAuth();
+  const dues = useQuery(api.contacts.listDueRelances, isAuthenticated ? {} : "skip");
+
+  if (!dues || dues.length === 0) return null;
+
+  const names = dues
+    .slice(0, 3)
+    .map((c) => `${c.prenom} ${c.nom}`)
+    .join(", ");
+  const extra = dues.length > 3 ? ` +${dues.length - 3}` : "";
+
   return (
-    <Button
-      type="button"
-      variant="outline"
-      size="sm"
-      onClick={() => {
-        window.dispatchEvent(
-          new KeyboardEvent("keydown", { key: "k", metaKey: true, bubbles: true }),
-        );
-      }}
-      aria-label="Recherche globale"
+    <Link
+      href="/pipeline"
+      className="flex items-center gap-2 border-b bg-orange-50 px-4 py-2 text-sm text-orange-800 transition-colors hover:bg-orange-100 dark:bg-orange-950/30 dark:text-orange-300 dark:hover:bg-orange-950/50"
     >
-      <Search data-icon="inline-start" />
-      <kbd className="hidden sm:inline">⌘K</kbd>
-    </Button>
+      <Bell className="size-4 shrink-0" />
+      <span>
+        <strong>{dues.length} relance{dues.length > 1 ? "s" : ""} à faire</strong>
+        {" — "}
+        {names}{extra}
+      </span>
+    </Link>
   );
 }

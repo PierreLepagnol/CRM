@@ -1,125 +1,47 @@
-import { paginationOptsValidator } from "convex/server";
 import { v } from "convex/values";
 
-import type { Doc, Id } from "./_generated/dataModel";
+import type { Id } from "./_generated/dataModel";
 import { mutation, query } from "./_generated/server";
 import type { MutationCtx } from "./_generated/server";
 import { requireUserId } from "./lib/auth";
-import { niveauDecision } from "./lib/validators";
+import { contactStage } from "./lib/validators";
 
-async function replaceContactTags(
-  ctx: MutationCtx,
-  contactId: Id<"contacts">,
-  tagIds: Array<Id<"tags">>,
-  actorId: string,
-) {
-  const entity = { kind: "contact" as const, id: contactId };
-  const tags = await Promise.all(tagIds.map((tagId) => ctx.db.get(tagId)));
-  if (tags.some((tag) => !tag || tag.deleted_at !== undefined || tag.scope !== entity.kind)) {
-    throw new Error("Tag incompatible avec un contact");
-  }
-  const existing = await ctx.db
-    .query("entity_tags")
-    .withIndex("by_entity", (q) => q.eq("entity.kind", entity.kind).eq("entity.id", entity.id))
-    .collect();
-  await Promise.all(existing.map((link) => ctx.db.delete(link._id)));
-  const now = Date.now();
-  await Promise.all(
-    Array.from(new Set(tagIds)).map((tagId) =>
-      ctx.db.insert("entity_tags", {
-        entity,
-        tag_id: tagId,
-        assigned_by: actorId,
-        assigned_at: now,
-      }),
-    ),
-  );
+async function getMaxPosition(ctx: MutationCtx, stage: string): Promise<number> {
+  const rows = await ctx.db
+    .query("contacts")
+    .withIndex("by_stage_and_position", (q) => q.eq("stage", stage as any))
+    .order("desc")
+    .filter((q) => q.eq(q.field("deleted_at"), undefined))
+    .first();
+  return rows ? rows.position + 1 : 0;
 }
 
-const contactFields = {
-  societe_id: v.optional(v.id("societes")),
-  civilite: v.optional(v.string()),
-  prenom: v.string(),
-  nom: v.string(),
-  photo_url: v.optional(v.string()),
-  intitule_poste: v.optional(v.string()),
-  niveau_decision: v.optional(niveauDecision),
-  email: v.optional(v.string()),
-  telephones: v.array(v.string()),
-  linkedin_url: v.optional(v.string()),
-  notes_md: v.optional(v.string()),
-  langue: v.optional(v.string()),
-  anniversaire: v.optional(v.string()),
-  tags: v.array(v.id("tags")),
-} as const;
-
-const contactPatchFields = {
-  societe_id: v.optional(v.id("societes")),
-  civilite: v.optional(v.string()),
-  prenom: v.optional(v.string()),
-  nom: v.optional(v.string()),
-  photo_url: v.optional(v.string()),
-  intitule_poste: v.optional(v.string()),
-  niveau_decision: v.optional(niveauDecision),
-  email: v.optional(v.string()),
-  telephones: v.optional(v.array(v.string())),
-  linkedin_url: v.optional(v.string()),
-  notes_md: v.optional(v.string()),
-  langue: v.optional(v.string()),
-  anniversaire: v.optional(v.string()),
-  tags: v.optional(v.array(v.id("tags"))),
-} as const;
-
 export const list = query({
-  args: { paginationOpts: paginationOptsValidator, tag_id: v.optional(v.id("tags")) },
-  handler: async (ctx, args) => {
+  args: {},
+  handler: async (ctx) => {
     await requireUserId(ctx);
-    const page = await ctx.db
+    const rows = await ctx.db
       .query("contacts")
       .withIndex("by_updated_at")
       .order("desc")
-      .paginate(args.paginationOpts);
-    const activePage = page.page.filter((c) => c.deleted_at === undefined);
-    if (!args.tag_id) return { ...page, page: activePage };
-    return {
-      ...page,
-      page: activePage.filter((c) => c.tags.includes(args.tag_id!)),
-    };
+      .collect();
+    return rows.filter((c) => c.deleted_at === undefined);
   },
 });
 
-export const listByDeal = query({
-  args: { deal_id: v.id("deals") },
-  handler: async (ctx, args) => {
-    await requireUserId(ctx);
-    const deal = await ctx.db.get(args.deal_id);
-    if (!deal) return [];
-    const links = await ctx.db
-      .query("deal_contacts")
-      .withIndex("by_deal", (q) => q.eq("deal_id", args.deal_id))
-      .take(200);
-    const contactIds =
-      links.length > 0
-        ? links
-            .sort((a, b) => Number(b.is_primary) - Number(a.is_primary))
-            .map((link) => link.contact_id)
-        : deal.contacts_ids;
-    const contacts = await Promise.all(contactIds.map((id) => ctx.db.get(id)));
-    return contacts.filter((contact): contact is Doc<"contacts"> => contact !== null && contact.deleted_at === undefined);
-  },
-});
-
-export const listBySociete = query({
-  args: { societe_id: v.id("societes") },
+export const listByStage = query({
+  args: { stage: contactStage },
   handler: async (ctx, args) => {
     await requireUserId(ctx);
     const rows = await ctx.db
       .query("contacts")
-      .withIndex("by_societe", (q) => q.eq("societe_id", args.societe_id))
-      .take(200);
-    return rows.filter((row) => row.deleted_at === undefined);
+      .withIndex("by_stage_and_position", (q) => q.eq("stage", args.stage))
+      .order("asc")
+      .collect();
+    return rows.filter((c) => c.deleted_at === undefined);
   },
 });
+
 
 export const get = query({
   args: { id: v.id("contacts") },
@@ -130,26 +52,81 @@ export const get = query({
   },
 });
 
+export const search = query({
+  args: { q: v.string() },
+  handler: async (ctx, args) => {
+    await requireUserId(ctx);
+    if (!args.q.trim()) return [];
+    const byNom = await ctx.db
+      .query("contacts")
+      .withSearchIndex("search_nom", (q) => q.search("nom", args.q))
+      .take(10);
+    const byEntreprise = await ctx.db
+      .query("contacts")
+      .withSearchIndex("search_entreprise", (q) => q.search("entreprise", args.q))
+      .take(10);
+    const combined = [...byNom, ...byEntreprise].filter((c) => c.deleted_at === undefined);
+    return combined.filter((c, i, arr) => arr.findIndex((x) => x._id === c._id) === i).slice(0, 15);
+  },
+});
+
+export const listDueRelances = query({
+  args: {},
+  handler: async (ctx) => {
+    await requireUserId(ctx);
+    const limit = Date.now() + 24 * 60 * 60 * 1000;
+    const rows = await ctx.db
+      .query("contacts")
+      .withIndex("by_next_relance_at")
+      .order("asc")
+      .filter((q) =>
+        q.and(
+          q.neq(q.field("next_relance_at"), undefined),
+          q.lte(q.field("next_relance_at"), limit),
+          q.eq(q.field("deleted_at"), undefined),
+        ),
+      )
+      .take(50);
+    return rows;
+  },
+});
+
+const sharedOptionalFields = {
+  entreprise: v.optional(v.string()),
+  email: v.optional(v.string()),
+  telephone: v.optional(v.string()),
+  poste: v.optional(v.string()),
+  contact_sciam: v.optional(v.string()),
+  notes_md: v.optional(v.string()),
+  next_relance_at: v.optional(v.number()),
+  stage: v.optional(contactStage),
+} as const;
+
+const contactFields = {
+  prenom: v.string(),
+  nom: v.string(),
+  ...sharedOptionalFields,
+} as const;
+
+const contactPatchFields = {
+  prenom: v.optional(v.string()),
+  nom: v.optional(v.string()),
+  ...sharedOptionalFields,
+} as const;
+
 export const create = mutation({
   args: contactFields,
   handler: async (ctx, args) => {
     const userId = await requireUserId(ctx);
-    const now = Date.now();
-    if (args.societe_id !== undefined) {
-      const societe = await ctx.db.get(args.societe_id);
-      if (!societe || societe.deleted_at !== undefined) throw new Error("Société introuvable");
-    }
+    const stage = args.stage ?? "nouveau";
+    const position = await getMaxPosition(ctx, stage);
+    const { stage: _stage, ...rest } = args;
     const id = await ctx.db.insert("contacts", {
-      ...args,
+      ...rest,
+      stage,
+      position,
       created_by: userId,
-      updated_by: userId,
-      updated_at: now,
-    });
-    await replaceContactTags(ctx, id, args.tags, userId);
-    await ctx.db.insert("activity_events", {
-      entity: { kind: "contact", id },
-      kind: "created",
-      actor_id: userId,
+      updated_at: Date.now(),
     });
     return id;
   },
@@ -158,27 +135,49 @@ export const create = mutation({
 export const update = mutation({
   args: { id: v.id("contacts"), patch: v.object(contactPatchFields) },
   handler: async (ctx, args) => {
-    const userId = await requireUserId(ctx);
+    await requireUserId(ctx);
     const existing = await ctx.db.get(args.id);
-    if (!existing) throw new Error("Contact introuvable");
-    if (args.patch.societe_id !== undefined) {
-      const societe = await ctx.db.get(args.patch.societe_id);
-      if (!societe || societe.deleted_at !== undefined) throw new Error("Société introuvable");
-    }
-    const kind =
-      args.patch.notes_md !== undefined && args.patch.notes_md !== existing.notes_md
-        ? "note_added"
-        : "updated";
-    await ctx.db.patch(args.id, { ...args.patch, updated_by: userId, updated_at: Date.now() });
-    if (args.patch.tags !== undefined) {
-      await replaceContactTags(ctx, args.id, args.patch.tags, userId);
-    }
-    await ctx.db.insert("activity_events", {
-      entity: { kind: "contact", id: args.id },
-      kind,
-      actor_id: userId,
-      payload_json: JSON.stringify({ fields: Object.keys(args.patch) }),
+    if (!existing || existing.deleted_at !== undefined) throw new Error("Contact introuvable");
+    const nextPosition =
+      args.patch.stage !== undefined && args.patch.stage !== existing.stage
+        ? await getMaxPosition(ctx, args.patch.stage)
+        : existing.position;
+    await ctx.db.patch(args.id, {
+      ...args.patch,
+      position: nextPosition,
+      updated_at: Date.now(),
     });
+    return null;
+  },
+});
+
+export const moveToStage = mutation({
+  args: {
+    id: v.id("contacts"),
+    newStage: contactStage,
+    targetIndex: v.number(),
+  },
+  handler: async (ctx, args) => {
+    await requireUserId(ctx);
+    const contact = await ctx.db.get(args.id);
+    if (!contact || contact.deleted_at !== undefined) throw new Error("Contact introuvable");
+
+    const colItems = await ctx.db
+      .query("contacts")
+      .withIndex("by_stage_and_position", (q) => q.eq("stage", args.newStage))
+      .order("asc")
+      .filter((q) => q.eq(q.field("deleted_at"), undefined))
+      .collect();
+
+    const filtered = colItems.filter((c) => c._id !== args.id);
+    const idx = Math.max(0, Math.min(args.targetIndex, filtered.length));
+    filtered.splice(idx, 0, { ...contact, stage: args.newStage });
+
+    await Promise.all(
+      filtered.map((c, i) =>
+        ctx.db.patch(c._id, { stage: args.newStage, position: i, updated_at: Date.now() }),
+      ),
+    );
     return null;
   },
 });
@@ -186,117 +185,10 @@ export const update = mutation({
 export const remove = mutation({
   args: { id: v.id("contacts") },
   handler: async (ctx, args) => {
-    const userId = await requireUserId(ctx);
+    await requireUserId(ctx);
     const existing = await ctx.db.get(args.id);
     if (!existing) throw new Error("Contact introuvable");
-    await ctx.db.patch(args.id, {
-      deleted_at: Date.now(),
-      deleted_by: userId,
-      updated_by: userId,
-      updated_at: Date.now(),
-    });
+    await ctx.db.patch(args.id, { deleted_at: Date.now(), updated_at: Date.now() });
     return null;
-  },
-});
-
-/** Liste légère pour pickers (participants de réunion, etc.). */
-export const listForPicker = query({
-  args: { societe_id: v.optional(v.id("societes")) },
-  handler: async (ctx, args) => {
-    await requireUserId(ctx);
-    if (args.societe_id) {
-      const rows = await ctx.db
-        .query("contacts")
-        .withIndex("by_societe", (q) => q.eq("societe_id", args.societe_id!))
-        .take(200);
-      return rows
-        .filter((c) => c.deleted_at === undefined)
-        .map((c) => ({ _id: c._id, prenom: c.prenom, nom: c.nom, email: c.email }));
-    }
-    const rows = await ctx.db.query("contacts").withIndex("by_updated_at").order("desc").take(500);
-    return rows
-      .filter((c) => c.deleted_at === undefined)
-      .map((c) => ({ _id: c._id, prenom: c.prenom, nom: c.nom, email: c.email }));
-  },
-});
-
-export const search = query({
-  args: { q: v.string() },
-  handler: async (ctx, args) => {
-    await requireUserId(ctx);
-    if (!args.q.trim()) return [];
-    const rows = await ctx.db
-      .query("contacts")
-      .withSearchIndex("search_full_name", (q) => q.search("nom", args.q))
-      .take(10);
-    return rows.filter((row) => row.deleted_at === undefined);
-  },
-});
-
-/** Recherche d'un contact par e-mail (pour la dédup à la création / import). */
-export const findByEmail = query({
-  args: { email: v.string() },
-  handler: async (ctx, args) => {
-    await requireUserId(ctx);
-    const row = await ctx.db
-      .query("contacts")
-      .withIndex("by_email", (q) => q.eq("email", args.email))
-      .unique();
-    return row?.deleted_at === undefined ? row : null;
-  },
-});
-
-export const findDuplicates = query({
-  args: {
-    email: v.optional(v.string()),
-    prenom: v.optional(v.string()),
-    nom: v.optional(v.string()),
-    societe_id: v.optional(v.id("societes")),
-  },
-  handler: async (ctx, args) => {
-    await requireUserId(ctx);
-    const byEmail = args.email
-      ? await ctx.db
-          .query("contacts")
-          .withIndex("by_email", (q) => q.eq("email", args.email))
-          .take(5)
-      : [];
-    const first = args.prenom?.trim().toLocaleLowerCase("fr-FR");
-    const last = args.nom?.trim().toLocaleLowerCase("fr-FR");
-    const byName =
-      first && last
-        ? (await ctx.db.query("contacts").withIndex("by_updated_at").order("desc").take(500)).filter(
-            (c) =>
-              c.prenom.trim().toLocaleLowerCase("fr-FR") === first &&
-              c.nom.trim().toLocaleLowerCase("fr-FR") === last &&
-              (!args.societe_id || c.societe_id === args.societe_id),
-          )
-        : [];
-    return [...byEmail, ...byName].filter((row) => row.deleted_at === undefined).filter(
-      (row, index, rows) => rows.findIndex((r) => r._id === row._id) === index,
-    );
-  },
-});
-
-export const merge = mutation({
-  args: { id: v.id("contacts"), patch: v.object(contactPatchFields) },
-  handler: async (ctx, args) => {
-    const userId = await requireUserId(ctx);
-    const existing = await ctx.db.get(args.id);
-    if (!existing) throw new Error("Contact introuvable");
-    if (args.patch.societe_id !== undefined) {
-      const societe = await ctx.db.get(args.patch.societe_id);
-      if (!societe || societe.deleted_at !== undefined) throw new Error("Société introuvable");
-    }
-    await ctx.db.patch(args.id, { ...args.patch, updated_by: userId, updated_at: Date.now() });
-    if (args.patch.tags !== undefined) {
-      await replaceContactTags(ctx, args.id, args.patch.tags, userId);
-    }
-    await ctx.db.insert("activity_events", {
-      entity: { kind: "contact", id: args.id },
-      kind: "merged",
-      actor_id: userId,
-    });
-    return args.id;
   },
 });

@@ -16,18 +16,24 @@ import {
 import { Separator } from "@CRM-APP/ui/components/separator";
 import { Skeleton } from "@CRM-APP/ui/components/skeleton";
 import { Textarea } from "@CRM-APP/ui/components/textarea";
+import { cn } from "@CRM-APP/ui/lib/utils";
 import { Authenticated, useMutation, useQuery } from "convex/react";
-import { ArrowLeft, CalendarDays, Download, Mail, MessageSquare, Phone, Trash2 } from "lucide-react";
+import { ArrowLeft, Bell, BellOff, Mail, Phone, Plus, Trash2, X } from "lucide-react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { AppShell } from "@/components/app-shell";
-import { LogReunionDialog } from "@/components/log-reunion-dialog";
-import { TagPicker } from "@/components/tag-picker";
-import { downloadHtmlPdf } from "@/lib/export";
-import { formatDate, formatMontant } from "@/lib/format";
+import {
+  STAGES,
+  INTERACTION_TYPES,
+  type ContactStage,
+  type InteractionType,
+  interactionLabel,
+  interactionIcon,
+} from "@/lib/crm";
+import { formatDate } from "@/lib/format";
 
 export default function ContactDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -42,55 +48,50 @@ export default function ContactDetailPage() {
 
 function ContactDetail({ id }: { id: Id<"contacts"> }) {
   const contact = useQuery(api.contacts.get, { id });
-  const societe = useQuery(
-    api.societes.get,
-    contact?.societe_id ? { id: contact.societe_id } : "skip",
-  );
-  const activity = useQuery(api.activity.listForEntity, {
-    entity: { kind: "contact", id },
-    limit: 20,
-  });
-  const deals = useQuery(api.deals.listByContact, { contact_id: id });
-  const reunions = useQuery(api.reunions.listByEntity, { entity: { kind: "contact", id } });
+  const interactions = useQuery(api.interactions.listByContact, { contact_id: id });
   const update = useMutation(api.contacts.update);
   const remove = useMutation(api.contacts.remove);
+  const createInteraction = useMutation(api.interactions.create);
+  const deleteInteraction = useMutation(api.interactions.remove);
   const router = useRouter();
 
   const [prenom, setPrenom] = useState("");
   const [nom, setNom] = useState("");
-  const [intitule, setIntitule] = useState("");
-  const [civilite, setCivilite] = useState("");
-  const [photoUrl, setPhotoUrl] = useState("");
+  const [entreprise, setEntreprise] = useState("");
   const [email, setEmail] = useState("");
-  const [linkedin, setLinkedin] = useState("");
-  const [telephones, setTelephones] = useState("");
-  const [langue, setLangue] = useState("");
-  const [anniversaire, setAnniversaire] = useState("");
+  const [telephone, setTelephone] = useState("");
+  const [poste, setPoste] = useState("");
+  const [contactSciam, setContactSciam] = useState("");
   const [notes, setNotes] = useState("");
-  const [niveau, setNiveau] = useState<"decideur" | "prescripteur" | "utilisateur" | "">("");
+  const [stage, setStage] = useState<ContactStage>("nouveau");
+  const [relanceDate, setRelanceDate] = useState("");
+
+  const [interType, setInterType] = useState<InteractionType>("email");
+  const [interDate, setInterDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [interResume, setInterResume] = useState("");
+  const [interLoading, setInterLoading] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   useEffect(() => {
     if (!contact) return;
     setPrenom(contact.prenom);
     setNom(contact.nom);
-    setIntitule(contact.intitule_poste ?? "");
-    setCivilite(contact.civilite ?? "");
-    setPhotoUrl(contact.photo_url ?? "");
+    setEntreprise(contact.entreprise ?? "");
     setEmail(contact.email ?? "");
-    setLinkedin(contact.linkedin_url ?? "");
-    setTelephones(contact.telephones.join(", "));
-    setLangue(contact.langue ?? "fr");
-    setAnniversaire(contact.anniversaire ?? "");
+    setTelephone(contact.telephone ?? "");
+    setPoste(contact.poste ?? "");
+    setContactSciam(contact.contact_sciam ?? "");
     setNotes(contact.notes_md ?? "");
-    setNiveau((contact.niveau_decision as typeof niveau) ?? "");
+    setStage(contact.stage);
+    setRelanceDate(
+      contact.next_relance_at ? new Date(contact.next_relance_at).toISOString().slice(0, 10) : "",
+    );
   }, [contact?._id]);
 
   if (contact === undefined) return <DetailSkeleton />;
   if (contact === null)
     return (
-      <div className="p-8 text-center text-sm text-muted-foreground">
-        Contact introuvable.
-      </div>
+      <div className="p-8 text-center text-sm text-muted-foreground">Contact introuvable.</div>
     );
 
   const persist = async (patch: Parameters<typeof update>[0]["patch"]) => {
@@ -99,7 +100,6 @@ function ContactDetail({ id }: { id: Id<"contacts"> }) {
   };
 
   const onDelete = async () => {
-    if (!confirm(`Supprimer "${contact.prenom} ${contact.nom}" ?`)) return;
     try {
       await remove({ id });
       toast.success("Contact supprimé.");
@@ -109,22 +109,38 @@ function ContactDetail({ id }: { id: Id<"contacts"> }) {
     }
   };
 
-  const exportPdf = () => {
-    downloadHtmlPdf(`contact-${contact._id}.html`, `${contact.prenom} ${contact.nom}`, [
-      ["Société", societe?.nom ?? ""],
-      ["Poste", intitule],
-      ["Coordonnées", `${email}\n${telephones}\n${linkedin}`],
-      ["Préférences", `Langue: ${langue}\nAnniversaire: ${anniversaire}`],
-      ["Notes", notes],
-    ]);
+  const onRelanceChange = (dateStr: string) => {
+    setRelanceDate(dateStr);
+    persist({ next_relance_at: dateStr ? new Date(dateStr).getTime() : undefined });
   };
 
-  const ACTIVITY_LABELS: Record<string, string> = {
-    created: "Créé",
-    updated: "Mis à jour",
-    meeting_logged: "Réunion ajoutée",
-    note_added: "Note ajoutée",
+  const onAddInteraction = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!interResume.trim()) return;
+    setInterLoading(true);
+    try {
+      await createInteraction({
+        contact_id: id,
+        type: interType,
+        date_at: new Date(interDate).getTime(),
+        resume: interResume.trim(),
+      });
+      setInterResume("");
+      toast.success("Échange ajouté.");
+    } catch {
+      toast.error("Échec de l'ajout.");
+    } finally {
+      setInterLoading(false);
+    }
   };
+
+  const now = Date.now();
+  const relanceTs = contact.next_relance_at;
+  const relanceOverdue = relanceTs !== undefined && relanceTs < now;
+  const relanceToday =
+    relanceTs !== undefined &&
+    relanceTs <= new Date(new Date().setHours(23, 59, 59, 999)).getTime() &&
+    !relanceOverdue;
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-6">
@@ -139,201 +155,153 @@ function ContactDetail({ id }: { id: Id<"contacts"> }) {
         <span className="text-sm font-medium">{contact.prenom} {contact.nom}</span>
       </div>
 
-      {/* Header */}
       <div className="mb-6 flex items-start justify-between gap-4">
         <div className="flex items-center gap-3">
-          <div className="flex size-12 shrink-0 items-center justify-center rounded-full bg-muted text-base font-medium">
+          <div className="flex size-12 shrink-0 items-center justify-center rounded-full bg-muted text-base font-semibold">
             {contact.prenom[0]}{contact.nom[0]}
           </div>
           <div>
             <h1 className="text-xl font-semibold">{contact.prenom} {contact.nom}</h1>
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              {contact.intitule_poste && <span>{contact.intitule_poste}</span>}
-              {societe && (
-                <>
-                  {contact.intitule_poste && <span>·</span>}
-                  <Link href={`/societes/${contact.societe_id!}` as any} className="hover:underline">
-                    {societe.nom}
-                  </Link>
-                </>
-              )}
+            <div className="text-sm text-muted-foreground">
+              {contact.poste && <span>{contact.poste}</span>}
+              {contact.poste && contact.entreprise && <span> · </span>}
+              {contact.entreprise && <span>{contact.entreprise}</span>}
             </div>
           </div>
         </div>
-        <Button variant="ghost" size="sm" onClick={onDelete} className="text-destructive hover:text-destructive">
-          <Trash2 className="size-4" />
-        </Button>
-        <Button variant="outline" size="sm" onClick={exportPdf}>
-          <Download data-icon="inline-start" />
-          PDF
+        <Button
+          variant={confirmDelete ? "destructive" : "ghost"}
+          size="sm"
+          onClick={confirmDelete ? onDelete : () => setConfirmDelete(true)}
+          onBlur={() => setConfirmDelete(false)}
+          className={cn(!confirmDelete && "text-destructive hover:text-destructive")}
+        >
+          {confirmDelete ? "Confirmer ?" : <Trash2 className="size-4" />}
         </Button>
       </div>
 
-      <section className="mb-6 rounded-lg border bg-card p-4">
-        <h2 className="mb-3 text-sm font-medium">Tags</h2>
-        <TagPicker scope="contact" entity={{ kind: "contact", id }} value={contact.tags} />
-      </section>
-
-      {/* Coordonnées rapides */}
-      <div className="mb-6 flex flex-wrap gap-3">
+      <div className="mb-6 flex flex-wrap gap-2">
         {contact.email && (
           <a
             href={`mailto:${contact.email}`}
-            className="inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm hover:bg-muted/50 transition-colors"
+            className="inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm transition-colors hover:bg-muted/50"
           >
             <Mail className="size-3.5" /> {contact.email}
           </a>
         )}
-        {contact.telephones.map((t) => (
+        {contact.telephone && (
           <a
-            key={t}
-            href={`tel:${t}`}
-            className="inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm hover:bg-muted/50 transition-colors"
+            href={`tel:${contact.telephone}`}
+            className="inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm transition-colors hover:bg-muted/50"
           >
-            <Phone className="size-3.5" /> {t}
-          </a>
-        ))}
-        {contact.telephones[0] && (
-          <a
-            href={`sms:${contact.telephones[0]}`}
-            className="inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm hover:bg-muted/50 transition-colors"
-          >
-            <MessageSquare className="size-3.5" /> SMS
+            <Phone className="size-3.5" /> {contact.telephone}
           </a>
         )}
       </div>
 
-      {/* Édition inline */}
+      <section className="mb-6 rounded-lg border bg-card p-4">
+        <Label htmlFor="cd-stage" className="mb-3 block text-sm font-medium">Stage pipeline</Label>
+        <Select value={stage} onValueChange={(v) => { setStage(v as ContactStage); persist({ stage: v as ContactStage }); }}>
+          <SelectTrigger id="cd-stage" className="w-48">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectGroup>
+              {STAGES.map((s) => (
+                <SelectItem key={s.id} value={s.id}>{s.label}</SelectItem>
+              ))}
+            </SelectGroup>
+          </SelectContent>
+        </Select>
+      </section>
+
+      <section className="mb-6 rounded-lg border bg-card p-4">
+        <h2 className="mb-3 text-sm font-medium">Relance</h2>
+        <div className="flex items-center gap-3">
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="cd-relance-date">Date de relance</Label>
+            <Input
+              id="cd-relance-date"
+              type="date"
+              value={relanceDate}
+              onChange={(e) => setRelanceDate(e.target.value)}
+              onBlur={() => onRelanceChange(relanceDate)}
+              className={cn(
+                relanceOverdue && "border-rose-500",
+                relanceToday && "border-orange-400",
+              )}
+            />
+            {relanceTs && (
+              <p className={cn(
+                "text-xs",
+                relanceOverdue && "text-rose-600",
+                relanceToday && "text-orange-600",
+                !relanceOverdue && !relanceToday && "text-muted-foreground",
+              )}>
+                {relanceOverdue
+                  ? "En retard !"
+                  : relanceToday
+                  ? "Aujourd'hui"
+                  : `Dans ${Math.ceil((relanceTs - now) / 86400000)} j`}
+              </p>
+            )}
+          </div>
+          {relanceTs ? (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => { setRelanceDate(""); persist({ next_relance_at: undefined }); }}
+            >
+              <BellOff className="size-4" />
+              Effacer
+            </Button>
+          ) : (
+            <Bell className="size-4 text-muted-foreground" />
+          )}
+        </div>
+      </section>
+
       <section className="mb-6 rounded-lg border bg-card p-4">
         <h2 className="mb-4 text-sm font-medium">Informations</h2>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="c-civilite">Civilité</Label>
-            <Input
-              id="c-civilite"
-              value={civilite}
-              onChange={(e) => setCivilite(e.target.value)}
-              onBlur={() => persist({ civilite: civilite.trim() || undefined })}
-            />
+            <Label htmlFor="cd-prenom">Prénom</Label>
+            <Input id="cd-prenom" value={prenom} onChange={(e) => setPrenom(e.target.value)} onBlur={() => prenom.trim() && persist({ prenom: prenom.trim() })} />
           </div>
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="c-photo">Photo URL</Label>
-            <Input
-              id="c-photo"
-              value={photoUrl}
-              onChange={(e) => setPhotoUrl(e.target.value)}
-              onBlur={() => persist({ photo_url: photoUrl.trim() || undefined })}
-            />
+            <Label htmlFor="cd-nom">Nom</Label>
+            <Input id="cd-nom" value={nom} onChange={(e) => setNom(e.target.value)} onBlur={() => nom.trim() && persist({ nom: nom.trim() })} />
           </div>
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="c-prenom">Prénom</Label>
-            <Input
-              id="c-prenom"
-              value={prenom}
-              onChange={(e) => setPrenom(e.target.value)}
-              onBlur={() => prenom.trim() && persist({ prenom: prenom.trim() })}
-            />
+            <Label htmlFor="cd-entreprise">Entreprise</Label>
+            <Input id="cd-entreprise" value={entreprise} onChange={(e) => setEntreprise(e.target.value)} onBlur={() => persist({ entreprise: entreprise.trim() || undefined })} />
           </div>
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="c-nom">Nom</Label>
-            <Input
-              id="c-nom"
-              value={nom}
-              onChange={(e) => setNom(e.target.value)}
-              onBlur={() => nom.trim() && persist({ nom: nom.trim() })}
-            />
+            <Label htmlFor="cd-poste">Poste</Label>
+            <Input id="cd-poste" value={poste} onChange={(e) => setPoste(e.target.value)} onBlur={() => persist({ poste: poste.trim() || undefined })} />
           </div>
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="c-intitule">Intitulé de poste</Label>
-            <Input
-              id="c-intitule"
-              value={intitule}
-              onChange={(e) => setIntitule(e.target.value)}
-              onBlur={() => persist({ intitule_poste: intitule.trim() || undefined })}
-            />
+            <Label htmlFor="cd-email">Email</Label>
+            <Input id="cd-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} onBlur={() => persist({ email: email.trim() || undefined })} />
           </div>
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="c-niveau">Niveau de décision</Label>
-            <Select
-              value={niveau}
-              onValueChange={(v) => {
-                setNiveau(v as typeof niveau);
-                persist({ niveau_decision: (v || undefined) as typeof contact.niveau_decision });
-              }}
-            >
-              <SelectTrigger id="c-niveau" className="w-full">
-                <SelectValue placeholder="— Aucun —" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectGroup>
-                  <SelectItem value="">— Aucun —</SelectItem>
-                  <SelectItem value="decideur">Décideur</SelectItem>
-                  <SelectItem value="prescripteur">Prescripteur</SelectItem>
-                  <SelectItem value="utilisateur">Utilisateur</SelectItem>
-                </SelectGroup>
-              </SelectContent>
-            </Select>
+            <Label htmlFor="cd-tel">Téléphone</Label>
+            <Input id="cd-tel" value={telephone} onChange={(e) => setTelephone(e.target.value)} onBlur={() => persist({ telephone: telephone.trim() || undefined })} />
           </div>
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="c-email">Email</Label>
-            <Input
-              id="c-email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              onBlur={() => persist({ email: email.trim() || undefined })}
-            />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="c-telephones">Téléphones</Label>
-            <Input
-              id="c-telephones"
-              value={telephones}
-              onChange={(e) => setTelephones(e.target.value)}
-              onBlur={() => persist({ telephones: telephones.split(",").map((t) => t.trim()).filter(Boolean) })}
-              placeholder="+33 6..., +33 1..."
-            />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="c-linkedin">LinkedIn</Label>
-            <Input
-              id="c-linkedin"
-              value={linkedin}
-              onChange={(e) => setLinkedin(e.target.value)}
-              onBlur={() => persist({ linkedin_url: linkedin.trim() || undefined })}
-              placeholder="https://linkedin.com/in/…"
-            />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="c-langue">Langue</Label>
-            <Input
-              id="c-langue"
-              value={langue}
-              onChange={(e) => setLangue(e.target.value)}
-              onBlur={() => persist({ langue: langue.trim() || undefined })}
-              placeholder="fr"
-            />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="c-anniversaire">Anniversaire</Label>
-            <Input
-              id="c-anniversaire"
-              type="date"
-              value={anniversaire}
-              onChange={(e) => setAnniversaire(e.target.value)}
-              onBlur={() => persist({ anniversaire: anniversaire || undefined })}
-            />
+          <div className="flex flex-col gap-1.5 sm:col-span-2">
+            <Label htmlFor="cd-sciam">Contact SCIAM référent</Label>
+            <Input id="cd-sciam" value={contactSciam} onChange={(e) => setContactSciam(e.target.value)} onBlur={() => persist({ contact_sciam: contactSciam.trim() || undefined })} />
           </div>
         </div>
         <div className="mt-4 flex flex-col gap-1.5">
-          <Label htmlFor="c-notes">Notes</Label>
+          <Label htmlFor="cd-notes">Notes</Label>
           <Textarea
-            id="c-notes"
-            rows={3}
+            id="cd-notes"
+            rows={4}
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             onBlur={() => persist({ notes_md: notes.trim() || undefined })}
-            placeholder="Notes libres (markdown)"
+            placeholder="Notes libres…"
           />
         </div>
       </section>
@@ -341,65 +309,89 @@ function ContactDetail({ id }: { id: Id<"contacts"> }) {
       <Separator className="my-6" />
 
       <section>
-        <h2 className="mb-3 text-sm font-medium">Deals liés ({deals?.length ?? "…" })</h2>
-        {deals === undefined ? (
-          <Skeleton className="h-20 w-full" />
-        ) : deals.length === 0 ? (
-          <p className="text-sm text-muted-foreground">Aucun deal lié.</p>
-        ) : (
-          <div className="divide-y rounded-lg border">
-            {deals.map((deal) => (
-              <div key={deal._id} className="flex items-center justify-between px-4 py-3 text-sm">
-                <span className="font-medium">{deal.titre}</span>
-                <span>{formatMontant(deal.montant, deal.devise)}</span>
-              </div>
-            ))}
+        <h2 className="mb-4 text-sm font-medium">
+          Historique des échanges ({interactions?.length ?? "…"})
+        </h2>
+
+        <form onSubmit={onAddInteraction} className="mb-4 rounded-lg border bg-muted/30 p-4">
+          <div className="mb-3 grid grid-cols-2 gap-3">
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="inter-type">Type</Label>
+              <Select value={interType} onValueChange={(v) => setInterType(v as InteractionType)}>
+                <SelectTrigger id="inter-type">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    {INTERACTION_TYPES.map((t) => (
+                      <SelectItem key={t.id} value={t.id}>{t.label}</SelectItem>
+                    ))}
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="inter-date">Date</Label>
+              <Input
+                id="inter-date"
+                type="date"
+                value={interDate}
+                onChange={(e) => setInterDate(e.target.value)}
+              />
+            </div>
           </div>
-        )}
-      </section>
-
-      <Separator className="my-6" />
-
-      <section>
-        <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-sm font-medium">Réunions ({reunions?.length ?? "…" })</h2>
-          <LogReunionDialog attachedTo={{ kind: "contact", id }} />
-        </div>
-        {reunions === undefined ? (
-          <Skeleton className="h-20 w-full" />
-        ) : reunions.length === 0 ? (
-          <p className="text-sm text-muted-foreground">Aucune réunion liée.</p>
-        ) : (
-          <div className="divide-y rounded-lg border">
-            {reunions.slice(0, 5).map((r) => (
-              <div key={r._id} className="px-4 py-3 text-sm">
-                <span className="font-medium">{formatDate(r.date)}</span>
-                <span className="text-muted-foreground"> · {r.duree_minutes} min</span>
-              </div>
-            ))}
+          <div className="mb-3 flex flex-col gap-1.5">
+            <Label htmlFor="inter-resume">Résumé</Label>
+            <Textarea
+              id="inter-resume"
+              rows={2}
+              value={interResume}
+              onChange={(e) => setInterResume(e.target.value)}
+              placeholder="Résumé de l'échange…"
+            />
           </div>
-        )}
-      </section>
+          <Button type="submit" size="sm" disabled={interLoading || !interResume.trim()}>
+            <Plus className="size-4" />
+            {interLoading ? "Ajout…" : "Ajouter"}
+          </Button>
+        </form>
 
-      <Separator className="my-6" />
-
-      {/* Timeline */}
-      <section>
-        <h2 className="mb-3 text-sm font-medium">Activité</h2>
-        {activity === undefined ? (
-          <Skeleton className="h-20 w-full" />
-        ) : activity.length === 0 ? (
-          <p className="text-sm text-muted-foreground">Aucune activité.</p>
+        {interactions === undefined ? (
+          <div className="flex flex-col gap-2">
+            <Skeleton className="h-16 w-full" />
+            <Skeleton className="h-16 w-full" />
+          </div>
+        ) : interactions.length === 0 ? (
+          <p className="text-sm text-muted-foreground">Aucun échange enregistré.</p>
         ) : (
-          <ul className="flex flex-col gap-2">
-            {activity.map((a) => (
-              <li key={a._id} className="flex gap-3 text-sm">
-                <span className="shrink-0 text-muted-foreground tabular-nums">
-                  {formatDate(a._creationTime)}
-                </span>
-                <span>{ACTIVITY_LABELS[a.kind] ?? a.kind}</span>
-              </li>
-            ))}
+          <ul className="flex flex-col divide-y rounded-lg border">
+            {interactions.map((inter) => {
+              const TypeIcon = interactionIcon(inter.type);
+              return (
+                <li key={inter._id} className="flex items-start gap-3 px-4 py-3">
+                  <TypeIcon className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-xs font-medium text-muted-foreground">
+                        {interactionLabel(inter.type)} · {formatDate(inter.date_at)}
+                      </span>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="size-6 shrink-0 text-muted-foreground hover:text-destructive"
+                        onClick={async () => {
+                          try { await deleteInteraction({ id: inter._id }); }
+                          catch { toast.error("Échec."); }
+                        }}
+                      >
+                        <X className="size-3" />
+                      </Button>
+                    </div>
+                    <p className="mt-0.5 text-sm">{inter.resume}</p>
+                  </div>
+                </li>
+              );
+            })}
           </ul>
         )}
       </section>

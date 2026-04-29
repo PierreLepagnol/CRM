@@ -8,24 +8,14 @@
  * @module
  */
 
-import type * as activity from "../activity.js";
 import type * as auth from "../auth.js";
 import type * as contacts from "../contacts.js";
-import type * as contrats from "../contrats.js";
-import type * as dashboard from "../dashboard.js";
-import type * as deals from "../deals.js";
-import type * as exports from "../exports.js";
 import type * as healthCheck from "../healthCheck.js";
 import type * as http from "../http.js";
+import type * as interactions from "../interactions.js";
 import type * as lib_auth from "../lib/auth.js";
 import type * as lib_validators from "../lib/validators.js";
-import type * as privateData from "../privateData.js";
-import type * as reunions from "../reunions.js";
-import type * as search from "../search.js";
-import type * as societes from "../societes.js";
-import type * as tags from "../tags.js";
-import type * as tasks from "../tasks.js";
-import type * as today from "../today.js";
+import type * as projects from "../projects.js";
 
 import type {
   ApiFromModules,
@@ -34,24 +24,14 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
-  activity: typeof activity;
   auth: typeof auth;
   contacts: typeof contacts;
-  contrats: typeof contrats;
-  dashboard: typeof dashboard;
-  deals: typeof deals;
-  exports: typeof exports;
   healthCheck: typeof healthCheck;
   http: typeof http;
+  interactions: typeof interactions;
   "lib/auth": typeof lib_auth;
   "lib/validators": typeof lib_validators;
-  privateData: typeof privateData;
-  reunions: typeof reunions;
-  search: typeof search;
-  societes: typeof societes;
-  tags: typeof tags;
-  tasks: typeof tasks;
-  today: typeof today;
+  projects: typeof projects;
 }>;
 
 /**
