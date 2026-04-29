@@ -23,7 +23,7 @@ import { Skeleton } from "@CRM-APP/ui/components/skeleton";
 import { Textarea } from "@CRM-APP/ui/components/textarea";
 import { useMutation, useQuery } from "convex/react";
 import { Trash2 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 
 import { STATUTS, type ProjectStatut } from "@/lib/crm";
@@ -39,6 +39,7 @@ export function ProjectSheet({
   const update = useMutation(api.projects.update);
   const remove = useMutation(api.projects.remove);
 
+  const [draftProjectId, setDraftProjectId] = useState<Id<"projects"> | null>(null);
   const [titre, setTitre] = useState("");
   const [client, setClient] = useState("");
   const [description, setDescription] = useState("");
@@ -48,8 +49,8 @@ export function ProjectSheet({
   const [dateFinPrevue, setDateFinPrevue] = useState("");
   const [confirmDelete, setConfirmDelete] = useState(false);
 
-  useEffect(() => {
-    if (!project) return;
+  if (project && project._id !== draftProjectId) {
+    setDraftProjectId(project._id);
     setTitre(project.titre);
     setClient(project.client ?? "");
     setDescription(project.description_md ?? "");
@@ -60,7 +61,7 @@ export function ProjectSheet({
       project.date_fin_prevue ? new Date(project.date_fin_prevue).toISOString().slice(0, 10) : "",
     );
     setConfirmDelete(false);
-  }, [project?._id]);
+  }
 
   if (!projectId) return null;
 

@@ -20,7 +20,7 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 
 type AnyId = string;
 type ItemWithId = { _id: AnyId };
@@ -34,15 +34,17 @@ export function useDndKanban<TCol extends string, TItem extends ItemWithId>({
   queryData: Map<TCol, TItem[]> | undefined;
   onMove: (id: AnyId, newCol: TCol, targetIndex: number) => void;
 }) {
-  const [byCol, setByCol] = useState<Map<TCol, TItem[]>>(
-    () => new Map(columns.map((c) => [c.id, []])),
-  );
+  const emptyByCol = useMemo(() => new Map(columns.map((c) => [c.id, []])), [columns]);
+  const [lastQueryData, setLastQueryData] = useState(queryData);
+  const [optimisticByCol, setOptimisticByCol] = useState<Map<TCol, TItem[]> | null>(null);
   const [activeId, setActiveId] = useState<AnyId | null>(null);
 
-  useEffect(() => {
-    if (!queryData) return;
-    setByCol(new Map(queryData));
-  }, [queryData]);
+  if (queryData !== lastQueryData) {
+    setLastQueryData(queryData);
+    setOptimisticByCol(null);
+  }
+
+  const byCol = optimisticByCol ?? queryData ?? emptyByCol;
 
   const allItems = useMemo(() => Array.from(byCol.values()).flat(), [byCol]);
 
@@ -103,7 +105,7 @@ export function useDndKanban<TCol extends string, TItem extends ItemWithId>({
       next.set(fromCol, newSource);
       next.set(toCol, newTarget);
     }
-    setByCol(next);
+    setOptimisticByCol(next);
     onMove(draggedId, toCol, targetIndex);
   };
 

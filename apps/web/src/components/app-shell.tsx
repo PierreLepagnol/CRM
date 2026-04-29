@@ -12,6 +12,7 @@ import {
 import { useConvexAuth, useQuery } from "convex/react";
 import { Bell } from "lucide-react";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 
 import { AppSidebar } from "./app-sidebar";
 import { ModeToggle } from "./mode-toggle";
@@ -23,6 +24,12 @@ type AppShellProps = {
 };
 
 export function AppShell({ title, actions, children }: AppShellProps) {
+  const { isLoading, isAuthenticated } = useConvexAuth();
+
+  if (!isLoading && !isAuthenticated) {
+    redirect("/");
+  }
+
   return (
     <SidebarProvider className="h-svh">
       <AppSidebar />

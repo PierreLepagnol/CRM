@@ -46,6 +46,7 @@ export default function SignInForm({ onSwitchToSignUp }: { onSwitchToSignUp: () 
       <h1 className="mb-6 text-center text-3xl font-bold">Welcome Back</h1>
 
       <form
+        method="post"
         onSubmit={(e) => {
           e.preventDefault();
           e.stopPropagation();
@@ -60,8 +61,8 @@ export default function SignInForm({ onSwitchToSignUp }: { onSwitchToSignUp: () 
                 <Label htmlFor={field.name}>Email</Label>
                 <Input
                   id={field.name}
-                  name={field.name}
                   type="email"
+                  autoComplete="email"
                   value={field.state.value}
                   onBlur={field.handleBlur}
                   onChange={(e) => field.handleChange(e.target.value)}
@@ -83,8 +84,8 @@ export default function SignInForm({ onSwitchToSignUp }: { onSwitchToSignUp: () 
                 <Label htmlFor={field.name}>Password</Label>
                 <Input
                   id={field.name}
-                  name={field.name}
                   type="password"
+                  autoComplete="current-password"
                   value={field.state.value}
                   onBlur={field.handleBlur}
                   onChange={(e) => field.handleChange(e.target.value)}

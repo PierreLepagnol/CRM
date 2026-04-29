@@ -36,14 +36,14 @@ export function AppSidebar() {
             alt="SCIAM"
             width={120}
             height={32}
-            className=" h-8 w-auto group-data-[collapsible=icon]:hidden"
+            className=" h-8 w-auto group-data-[collapsible=icon]:hidden invert"
           />
           <Image
             src="/LogoSCIAM-white.webp"
             alt="SCIAM"
             width={32}
             height={32}
-            className="hidden size-5 object-contain group-data-[collapsible=icon]:block"
+            className="hidden size-5 object-contain group-data-[collapsible=icon]:block invert"
           />
         </div>
       </SidebarHeader>

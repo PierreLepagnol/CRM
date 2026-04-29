@@ -12,7 +12,9 @@ import { ThemeProvider } from "./theme-provider";
 const convex = new ConvexReactClient(env.NEXT_PUBLIC_CONVEX_URL);
 
 function useBetterAuthToken(initialToken?: string | null) {
+  const normalizedInitialToken = initialToken ?? null;
   const [token, setToken] = useState<string | null>(initialToken ?? null);
+  const [lastInitialToken, setLastInitialToken] = useState<string | null>(normalizedInitialToken);
   const tokenRef = useRef<string | null>(initialToken ?? null);
   const pendingTokenRef = useRef<Promise<string | null> | null>(null);
 
@@ -21,9 +23,10 @@ function useBetterAuthToken(initialToken?: string | null) {
     setToken(nextToken);
   }, []);
 
-  useEffect(() => {
-    setCachedToken(initialToken ?? null);
-  }, [initialToken, setCachedToken]);
+  if (normalizedInitialToken !== lastInitialToken) {
+    setLastInitialToken(normalizedInitialToken);
+    setCachedToken(normalizedInitialToken);
+  }
 
   const fetchAccessToken = useCallback(
     async ({ forceRefreshToken = false }: { forceRefreshToken?: boolean } = {}) => {
@@ -58,9 +61,10 @@ function useBetterAuthToken(initialToken?: string | null) {
   useEffect(() => {
     return authClient.$store.listen("$sessionSignal", () => {
       pendingTokenRef.current = null;
+      setCachedToken(null);
       void fetchAccessToken({ forceRefreshToken: true });
     });
-  }, [fetchAccessToken]);
+  }, [fetchAccessToken, setCachedToken]);
 
   return useMemo(
     () => ({

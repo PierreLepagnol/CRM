@@ -49,6 +49,7 @@ export default function SignUpForm({ onSwitchToSignIn }: { onSwitchToSignIn: () 
       <h1 className="mb-6 text-center text-3xl font-bold">Create Account</h1>
 
       <form
+        method="post"
         onSubmit={(e) => {
           e.preventDefault();
           e.stopPropagation();
@@ -63,7 +64,7 @@ export default function SignUpForm({ onSwitchToSignIn }: { onSwitchToSignIn: () 
                 <Label htmlFor={field.name}>Name</Label>
                 <Input
                   id={field.name}
-                  name={field.name}
+                  autoComplete="name"
                   value={field.state.value}
                   onBlur={field.handleBlur}
                   onChange={(e) => field.handleChange(e.target.value)}
@@ -85,8 +86,8 @@ export default function SignUpForm({ onSwitchToSignIn }: { onSwitchToSignIn: () 
                 <Label htmlFor={field.name}>Email</Label>
                 <Input
                   id={field.name}
-                  name={field.name}
                   type="email"
+                  autoComplete="email"
                   value={field.state.value}
                   onBlur={field.handleBlur}
                   onChange={(e) => field.handleChange(e.target.value)}
@@ -108,8 +109,8 @@ export default function SignUpForm({ onSwitchToSignIn }: { onSwitchToSignIn: () 
                 <Label htmlFor={field.name}>Password</Label>
                 <Input
                   id={field.name}
-                  name={field.name}
                   type="password"
+                  autoComplete="new-password"
                   value={field.state.value}
                   onBlur={field.handleBlur}
                   onChange={(e) => field.handleChange(e.target.value)}

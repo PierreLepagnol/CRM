@@ -21,7 +21,7 @@ import { Authenticated, useMutation, useQuery } from "convex/react";
 import { ArrowLeft, Bell, BellOff, Mail, Phone, Plus, Trash2, X } from "lucide-react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 
 import { AppShell } from "@/components/app-shell";
@@ -55,6 +55,7 @@ function ContactDetail({ id }: { id: Id<"contacts"> }) {
   const deleteInteraction = useMutation(api.interactions.remove);
   const router = useRouter();
 
+  const [draftContactId, setDraftContactId] = useState<Id<"contacts"> | null>(null);
   const [prenom, setPrenom] = useState("");
   const [nom, setNom] = useState("");
   const [entreprise, setEntreprise] = useState("");
@@ -72,8 +73,8 @@ function ContactDetail({ id }: { id: Id<"contacts"> }) {
   const [interLoading, setInterLoading] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
-  useEffect(() => {
-    if (!contact) return;
+  if (contact && contact._id !== draftContactId) {
+    setDraftContactId(contact._id);
     setPrenom(contact.prenom);
     setNom(contact.nom);
     setEntreprise(contact.entreprise ?? "");
@@ -86,7 +87,7 @@ function ContactDetail({ id }: { id: Id<"contacts"> }) {
     setRelanceDate(
       contact.next_relance_at ? new Date(contact.next_relance_at).toISOString().slice(0, 10) : "",
     );
-  }, [contact?._id]);
+  }
 
   if (contact === undefined) return <DetailSkeleton />;
   if (contact === null)

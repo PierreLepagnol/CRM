@@ -17,12 +17,10 @@ import {
 } from "@CRM-APP/ui/components/dropdown-menu";
 import { useQuery } from "convex/react";
 import { LogOut } from "lucide-react";
-import { useRouter } from "next/navigation";
 
 import { authClient } from "@/lib/auth-client";
 
 export default function UserMenu() {
-  const router = useRouter();
   const user = useQuery(api.auth.getCurrentUser);
 
   const initials = (user?.name ?? "?")
@@ -62,10 +60,10 @@ export default function UserMenu() {
           <DropdownMenuItem
             variant="destructive"
             onClick={() => {
-              authClient.signOut({
+              void authClient.signOut({
                 fetchOptions: {
                   onSuccess: () => {
-                    router.push("/pipeline");
+                    window.location.replace("/");
                   },
                 },
               });
