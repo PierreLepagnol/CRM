@@ -1,6 +1,6 @@
 {
-  "buildCommand": "cd CRM-APP && bun install --frozen-lockfile && npx turbo build --filter=web",
-  "outputDirectory": "CRM-APP/apps/web/.next",
-  "installCommand": "cd CRM-APP && bun install --frozen-lockfile",
+  "buildCommand": "bun install --frozen-lockfile && npx turbo build --filter=web",
+  "outputDirectory": "apps/web/.next",
+  "installCommand": "bun install --frozen-lockfile",
   "framework": "nextjs"
 }
