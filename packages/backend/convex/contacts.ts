@@ -3,6 +3,7 @@ import { v } from "convex/values";
 import type { Id } from "./_generated/dataModel";
 import { mutation, query } from "./_generated/server";
 import type { MutationCtx } from "./_generated/server";
+import { authComponent } from "./auth";
 import { requireUserId } from "./lib/auth";
 import { contactStage } from "./lib/validators";
 
@@ -19,7 +20,7 @@ async function getMaxPosition(ctx: MutationCtx, stage: string): Promise<number> 
 export const list = query({
   args: {},
   handler: async (ctx) => {
-    await requireUserId(ctx);
+    if (!await authComponent.safeGetAuthUser(ctx)) return [];
     const rows = await ctx.db
       .query("contacts")
       .withIndex("by_updated_at")
@@ -32,7 +33,7 @@ export const list = query({
 export const listByStage = query({
   args: { stage: contactStage },
   handler: async (ctx, args) => {
-    await requireUserId(ctx);
+    if (!await authComponent.safeGetAuthUser(ctx)) return [];
     const rows = await ctx.db
       .query("contacts")
       .withIndex("by_stage_and_position", (q) => q.eq("stage", args.stage))
@@ -46,7 +47,7 @@ export const listByStage = query({
 export const get = query({
   args: { id: v.id("contacts") },
   handler: async (ctx, args) => {
-    await requireUserId(ctx);
+    if (!await authComponent.safeGetAuthUser(ctx)) return null;
     const row = await ctx.db.get(args.id);
     return row?.deleted_at === undefined ? row : null;
   },
@@ -55,7 +56,7 @@ export const get = query({
 export const search = query({
   args: { q: v.string() },
   handler: async (ctx, args) => {
-    await requireUserId(ctx);
+    if (!await authComponent.safeGetAuthUser(ctx)) return [];
     if (!args.q.trim()) return [];
     const byNom = await ctx.db
       .query("contacts")
@@ -73,7 +74,8 @@ export const search = query({
 export const listDueRelances = query({
   args: {},
   handler: async (ctx) => {
-    await requireUserId(ctx);
+    const user = await authComponent.safeGetAuthUser(ctx);
+    if (!user) return [];
     const limit = Date.now() + 24 * 60 * 60 * 1000;
     const rows = await ctx.db
       .query("contacts")

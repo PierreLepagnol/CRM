@@ -1,13 +1,14 @@
 import { v } from "convex/values";
 
 import { mutation, query } from "./_generated/server";
+import { authComponent } from "./auth";
 import { requireUserId } from "./lib/auth";
 import { interactionType } from "./lib/validators";
 
 export const listByContact = query({
   args: { contact_id: v.id("contacts") },
   handler: async (ctx, args) => {
-    await requireUserId(ctx);
+    if (!await authComponent.safeGetAuthUser(ctx)) return [];
     const rows = await ctx.db
       .query("interactions")
       .withIndex("by_contact_and_date", (q) => q.eq("contact_id", args.contact_id))

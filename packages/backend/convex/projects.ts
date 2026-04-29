@@ -2,6 +2,7 @@ import { v } from "convex/values";
 
 import { mutation, query } from "./_generated/server";
 import type { MutationCtx } from "./_generated/server";
+import { authComponent } from "./auth";
 import { requireUserId } from "./lib/auth";
 import { projectStatut, projectType } from "./lib/validators";
 
@@ -18,7 +19,7 @@ async function getMaxPosition(ctx: MutationCtx, statut: string): Promise<number>
 export const list = query({
   args: {},
   handler: async (ctx) => {
-    await requireUserId(ctx);
+    if (!await authComponent.safeGetAuthUser(ctx)) return [];
     const rows = await ctx.db
       .query("projects")
       .withIndex("by_updated_at")
@@ -31,7 +32,7 @@ export const list = query({
 export const listByStatut = query({
   args: { statut: projectStatut },
   handler: async (ctx, args) => {
-    await requireUserId(ctx);
+    if (!await authComponent.safeGetAuthUser(ctx)) return [];
     const rows = await ctx.db
       .query("projects")
       .withIndex("by_statut_and_position", (q) => q.eq("statut", args.statut))
@@ -45,7 +46,7 @@ export const listByStatut = query({
 export const get = query({
   args: { id: v.id("projects") },
   handler: async (ctx, args) => {
-    await requireUserId(ctx);
+    if (!await authComponent.safeGetAuthUser(ctx)) return null;
     const row = await ctx.db.get(args.id);
     return row?.deleted_at === undefined ? row : null;
   },
