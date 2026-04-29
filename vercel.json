@@ -1,6 +1,0 @@
-{
-  "buildCommand": "bun install --frozen-lockfile && npx turbo build --filter=web",
-  "outputDirectory": "apps/web/.next",
-  "installCommand": "bun install --frozen-lockfile",
-  "framework": "nextjs"
-}
