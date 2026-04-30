@@ -27,6 +27,7 @@ export const interactionType = v.union(
   v.literal("appel"),
   v.literal("rdv"),
   v.literal("linkedin"),
+  v.literal("relance"),
 );
 
 export const projectType = v.union(
