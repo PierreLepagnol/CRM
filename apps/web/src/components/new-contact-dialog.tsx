@@ -88,7 +88,7 @@ export function NewContactDialog({ defaultStage }: { defaultStage?: ContactStage
           </Button>
         }
       />
-      <DialogContent className="max-w-full h-screen rounded-none flex flex-col p-0">
+      <DialogContent className="sm:max-w-3xl w-full flex flex-col p-0">
         <DialogHeader className="px-8 pt-8 pb-4 border-b">
           <DialogTitle className="text-2xl">Nouveau contact</DialogTitle>
           <DialogDescription>
@@ -97,7 +97,7 @@ export function NewContactDialog({ defaultStage }: { defaultStage?: ContactStage
         </DialogHeader>
         <form onSubmit={onSubmit} className="flex flex-col flex-1 overflow-hidden">
           <div className="flex-1 overflow-y-auto px-8 py-6">
-            <div className="max-w-3xl mx-auto grid grid-cols-2 gap-6">
+            <div className="grid grid-cols-2 gap-6">
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="nc-prenom">Prénom *</Label>
                 <Input

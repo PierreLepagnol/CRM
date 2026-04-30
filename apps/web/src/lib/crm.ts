@@ -1,5 +1,5 @@
 import type { Doc } from "@CRM-APP/backend/convex/_generated/dataModel";
-import { Mail, MessageSquare, Phone } from "lucide-react";
+import { Bell, Mail, MessageSquare, Phone } from "lucide-react";
 import type { ElementType } from "react";
 
 export type ContactStage = Doc<"contacts">["stage"];
@@ -27,6 +27,7 @@ export const INTERACTION_TYPES: { id: InteractionType; label: string; icon: Elem
   { id: "appel", label: "Appel", icon: Phone },
   { id: "rdv", label: "RDV", icon: MessageSquare },
   { id: "linkedin", label: "LinkedIn", icon: MessageSquare },
+  { id: "relance", label: "Relance", icon: Bell },
 ];
 
 export function stageLabel(id: ContactStage) {
