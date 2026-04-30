@@ -27,6 +27,13 @@ function createAuth(ctx: GenericCtx<DataModel>) {
       enabled: true,
       requireEmailVerification: false,
     },
+    socialProviders: {
+      microsoft: {
+        clientId: process.env.MICROSOFT_CLIENT_ID!,
+        clientSecret: process.env.MICROSOFT_CLIENT_SECRET!,
+        tenantId: process.env.MICROSOFT_TENANT_ID!,
+      },
+    },
     plugins: [
       convex({
         authConfig,

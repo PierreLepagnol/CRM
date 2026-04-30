@@ -124,6 +124,23 @@ export default function SignInForm({
         </form.Subscribe>
       </form>
 
+      <div className="mt-4">
+        <Button
+          type="button"
+          variant="outline"
+          className="w-full"
+          onClick={() =>
+            authClient.signIn.social({
+              provider: "microsoft",
+              callbackURL: "/pipeline",
+            })
+          }
+        >
+          <img src="/microsoft-color.svg" alt="Microsoft" className="size-4" />
+          Se connecter avec Microsoft
+        </Button>
+      </div>
+
       <div className="mt-4 text-center">
         <Button
           variant="link"
