@@ -15,6 +15,7 @@ import type * as http from "../http.js";
 import type * as interactions from "../interactions.js";
 import type * as lib_auth from "../lib/auth.js";
 import type * as lib_validators from "../lib/validators.js";
+import type * as migrations from "../migrations.js";
 import type * as projects from "../projects.js";
 
 import type {
@@ -31,6 +32,7 @@ declare const fullApi: ApiFromModules<{
   interactions: typeof interactions;
   "lib/auth": typeof lib_auth;
   "lib/validators": typeof lib_validators;
+  migrations: typeof migrations;
   projects: typeof projects;
 }>;
 
