@@ -110,9 +110,22 @@ function ContactDetail({ id }: { id: Id<"contacts"> }) {
     }
   };
 
-  const onRelanceChange = (dateStr: string) => {
+  const onRelanceChange = async (dateStr: string) => {
     setRelanceDate(dateStr);
-    persist({ next_relance_at: dateStr ? new Date(dateStr).getTime() : undefined });
+    const ts = dateStr ? new Date(dateStr).getTime() : null;
+    await persist({ next_relance_at: ts });
+    if (ts) {
+      try {
+        await createInteraction({
+          contact_id: id,
+          type: "relance",
+          date_at: ts,
+          resume: `Relance programmée pour le ${new Date(ts).toLocaleDateString("fr-FR")}`,
+        });
+      } catch {
+        // non-blocking
+      }
+    }
   };
 
   const onAddInteraction = async (e: React.FormEvent) => {
@@ -200,23 +213,24 @@ function ContactDetail({ id }: { id: Id<"contacts"> }) {
         )}
       </div>
 
-      <section className="mb-6 rounded-lg border bg-card p-4">
-        <Label htmlFor="cd-stage" className="mb-3 block text-sm font-medium">Stage pipeline</Label>
-        <Select value={stage} onValueChange={(v) => { setStage(v as ContactStage); persist({ stage: v as ContactStage }); }}>
-          <SelectTrigger id="cd-stage" className="w-48">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectGroup>
-              {STAGES.map((s) => (
-                <SelectItem key={s.id} value={s.id}>{s.label}</SelectItem>
-              ))}
-            </SelectGroup>
-          </SelectContent>
-        </Select>
-      </section>
+      <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <section className="rounded-lg border bg-card p-4">
+          <Label htmlFor="cd-stage" className="mb-3 block text-sm font-medium">Stage pipeline</Label>
+          <Select value={stage} onValueChange={(v) => { setStage(v as ContactStage); persist({ stage: v as ContactStage }); }}>
+            <SelectTrigger id="cd-stage" className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                {STAGES.map((s) => (
+                  <SelectItem key={s.id} value={s.id}>{s.label}</SelectItem>
+                ))}
+              </SelectGroup>
+            </SelectContent>
+          </Select>
+        </section>
 
-      <section className="mb-6 rounded-lg border bg-card p-4">
+        <section className="rounded-lg border bg-card p-4">
         <h2 className="mb-3 text-sm font-medium">Relance</h2>
         <div className="flex items-center gap-3">
           <div className="flex flex-col gap-1.5">
@@ -251,7 +265,7 @@ function ContactDetail({ id }: { id: Id<"contacts"> }) {
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => { setRelanceDate(""); persist({ next_relance_at: undefined }); }}
+              onClick={() => { setRelanceDate(""); persist({ next_relance_at: null }); }}
             >
               <BellOff className="size-4" />
               Effacer
@@ -260,7 +274,8 @@ function ContactDetail({ id }: { id: Id<"contacts"> }) {
             <Bell className="size-4 text-muted-foreground" />
           )}
         </div>
-      </section>
+        </section>
+      </div>
 
       <section className="mb-6 rounded-lg border bg-card p-4">
         <h2 className="mb-4 text-sm font-medium">Informations</h2>

@@ -113,7 +113,15 @@ const contactFields = {
 const contactPatchFields = {
   prenom: v.optional(v.string()),
   nom: v.optional(v.string()),
-  ...sharedOptionalFields,
+  entreprise: v.optional(v.string()),
+  email: v.optional(v.string()),
+  telephone: v.optional(v.string()),
+  poste: v.optional(v.string()),
+  contact_sciam: v.optional(v.string()),
+  notes_md: v.optional(v.string()),
+  // null means "clear the field" (undefined is dropped by JSON serialization)
+  next_relance_at: v.optional(v.union(v.number(), v.null())),
+  stage: v.optional(contactStage),
 } as const;
 
 export const create = mutation({
@@ -144,8 +152,12 @@ export const update = mutation({
       args.patch.stage !== undefined && args.patch.stage !== existing.stage
         ? await getMaxPosition(ctx, args.patch.stage)
         : existing.position;
+    const { next_relance_at, ...restPatch } = args.patch;
     await ctx.db.patch(args.id, {
-      ...args.patch,
+      ...restPatch,
+      ...(next_relance_at !== undefined
+        ? { next_relance_at: next_relance_at === null ? undefined : next_relance_at }
+        : {}),
       position: nextPosition,
       updated_at: Date.now(),
     });
