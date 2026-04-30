@@ -2,11 +2,12 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 
 import "../index.css";
-import Providers from "@/components/providers";
+
 import { getToken } from "@/lib/auth-server";
+import Providers from "@/components/providers";
 import { cn } from "@CRM-APP/ui/lib/utils";
 
-const inter = Inter({subsets:['latin'],variable:'--font-sans'});
+const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
 
 export const metadata: Metadata = {
   title: "CRM",
@@ -15,10 +16,11 @@ export const metadata: Metadata = {
 
 export default async function RootLayout({
   children,
-}: Readonly<{
+}: {
   children: React.ReactNode;
-}>) {
+}) {
   const token = await getToken();
+
   return (
     <html lang="fr" suppressHydrationWarning className={cn("font-sans", inter.variable)}>
       <body className="antialiased">
