@@ -23,15 +23,12 @@ function createAuth(ctx: GenericCtx<DataModel>) {
     baseURL: siteUrl,
     trustedOrigins: Array.from(new Set(trustedOrigins)),
     database: authComponent.adapter(ctx),
-    emailAndPassword: {
-      enabled: true,
-      requireEmailVerification: false,
-    },
     socialProviders: {
       microsoft: {
         clientId: process.env.MICROSOFT_CLIENT_ID!,
         clientSecret: process.env.MICROSOFT_CLIENT_SECRET!,
         tenantId: process.env.MICROSOFT_TENANT_ID!,
+        allowDangerousEmailAccountLinking: true,
       },
     },
     plugins: [
