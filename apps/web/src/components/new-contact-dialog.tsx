@@ -88,102 +88,109 @@ export function NewContactDialog({ defaultStage }: { defaultStage?: ContactStage
           </Button>
         }
       />
-      <DialogContent className="max-w-md">
-        <DialogHeader>
-          <DialogTitle>Nouveau contact</DialogTitle>
+      <DialogContent className="max-w-full h-screen rounded-none flex flex-col p-0">
+        <DialogHeader className="px-8 pt-8 pb-4 border-b">
+          <DialogTitle className="text-2xl">Nouveau contact</DialogTitle>
           <DialogDescription>
             Renseignez les informations du contact à créer.
           </DialogDescription>
         </DialogHeader>
-        <form onSubmit={onSubmit} className="flex flex-col gap-4">
-          <div className="grid grid-cols-2 gap-3">
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="nc-prenom">Prénom *</Label>
-              <Input
-                id="nc-prenom"
-                value={prenom}
-                onChange={(e) => setPrenom(e.target.value)}
-                required
-                autoFocus
-              />
+        <form onSubmit={onSubmit} className="flex flex-col flex-1 overflow-hidden">
+          <div className="flex-1 overflow-y-auto px-8 py-6">
+            <div className="max-w-3xl mx-auto grid grid-cols-2 gap-6">
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="nc-prenom">Prénom *</Label>
+                <Input
+                  id="nc-prenom"
+                  value={prenom}
+                  onChange={(e) => setPrenom(e.target.value)}
+                  required
+                  autoFocus
+                  className="h-11 text-base"
+                />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="nc-nom">Nom *</Label>
+                <Input
+                  id="nc-nom"
+                  value={nom}
+                  onChange={(e) => setNom(e.target.value)}
+                  required
+                  className="h-11 text-base"
+                />
+              </div>
+              <div className="col-span-2 flex flex-col gap-1.5">
+                <Label htmlFor="nc-entreprise">Entreprise</Label>
+                <Input
+                  id="nc-entreprise"
+                  value={entreprise}
+                  onChange={(e) => setEntreprise(e.target.value)}
+                  className="h-11 text-base"
+                />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="nc-email">Email</Label>
+                <Input
+                  id="nc-email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="h-11 text-base"
+                />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="nc-tel">Téléphone</Label>
+                <Input
+                  id="nc-tel"
+                  value={telephone}
+                  onChange={(e) => setTelephone(e.target.value)}
+                  className="h-11 text-base"
+                />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="nc-poste">Poste</Label>
+                <Input
+                  id="nc-poste"
+                  value={poste}
+                  onChange={(e) => setPoste(e.target.value)}
+                  className="h-11 text-base"
+                />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="nc-sciam">Contact SCIAM référent</Label>
+                <Input
+                  id="nc-sciam"
+                  value={contactSciam}
+                  onChange={(e) => setContactSciam(e.target.value)}
+                  placeholder="Ex: Sophie Martin"
+                  className="h-11 text-base"
+                />
+              </div>
+              <div className="col-span-2 flex flex-col gap-1.5">
+                <Label htmlFor="nc-stage">Stage</Label>
+                <Select value={stage} onValueChange={(v) => setStage(v as ContactStage)}>
+                  <SelectTrigger id="nc-stage" className="h-11 text-base">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      {STAGES.map((s) => (
+                        <SelectItem key={s.id} value={s.id}>
+                          {s.label}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="nc-nom">Nom *</Label>
-              <Input
-                id="nc-nom"
-                value={nom}
-                onChange={(e) => setNom(e.target.value)}
-                required
-              />
-            </div>
           </div>
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="nc-entreprise">Entreprise</Label>
-            <Input
-              id="nc-entreprise"
-              value={entreprise}
-              onChange={(e) => setEntreprise(e.target.value)}
-            />
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="nc-email">Email</Label>
-              <Input
-                id="nc-email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-              />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="nc-tel">Téléphone</Label>
-              <Input
-                id="nc-tel"
-                value={telephone}
-                onChange={(e) => setTelephone(e.target.value)}
-              />
-            </div>
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="nc-poste">Poste</Label>
-            <Input
-              id="nc-poste"
-              value={poste}
-              onChange={(e) => setPoste(e.target.value)}
-            />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="nc-sciam">Contact SCIAM référent</Label>
-            <Input
-              id="nc-sciam"
-              value={contactSciam}
-              onChange={(e) => setContactSciam(e.target.value)}
-              placeholder="Ex: Sophie Martin"
-            />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="nc-stage">Stage</Label>
-            <Select value={stage} onValueChange={(v) => setStage(v as ContactStage)}>
-              <SelectTrigger id="nc-stage">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectGroup>
-                  {STAGES.map((s) => (
-                    <SelectItem key={s.id} value={s.id}>
-                      {s.label}
-                    </SelectItem>
-                  ))}
-                </SelectGroup>
-              </SelectContent>
-            </Select>
-          </div>
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+          <DialogFooter className="px-8 py-5 border-t">
+            <Button type="button" variant="outline" size="lg" onClick={() => setOpen(false)}>
               Annuler
             </Button>
-            <Button type="submit" disabled={loading || !prenom.trim() || !nom.trim()}>
-              {loading ? "Création…" : "Créer"}
+            <Button type="submit" size="lg" disabled={loading || !prenom.trim() || !nom.trim()}>
+              {loading ? "Création…" : "Créer le contact"}
             </Button>
           </DialogFooter>
         </form>
