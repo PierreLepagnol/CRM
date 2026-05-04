@@ -7,7 +7,7 @@ export type ProjectStatut = Doc<"projects">["statut"];
 export type InteractionType = Doc<"interactions">["type"];
 
 export const STAGES = [
-  { id: "nouveau" as ContactStage, label: "Nouveau", badgeClass: "bg-slate-100 text-slate-700" },
+  { id: "nouveau" as ContactStage, label: "Prospect", badgeClass: "bg-slate-100 text-slate-700" },
   { id: "contacte" as ContactStage, label: "Contacté", badgeClass: "bg-sky-100 text-sky-700" },
   { id: "rdv" as ContactStage, label: "RDV", badgeClass: "bg-indigo-100 text-indigo-700" },
   { id: "proposition" as ContactStage, label: "Proposition", badgeClass: "bg-amber-100 text-amber-700" },
