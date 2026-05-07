@@ -13,6 +13,13 @@ export function assertOptionalTimestampMs(value: number | undefined, field: stri
   if (value !== undefined) assertTimestampMs(value, field);
 }
 
+export function assertMontant(value: number | undefined) {
+  if (value === undefined) return;
+  if (!Number.isFinite(value) || value < 0) {
+    throw new Error("Le montant doit être un nombre positif ou nul");
+  }
+}
+
 export const contactStage = v.union(
   v.literal("nouveau"),
   v.literal("contacte"),

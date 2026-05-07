@@ -143,12 +143,14 @@ export function KanbanBoard({
 export function KanbanColumn<TItem extends ItemWithId>({
   id,
   label,
+  summary,
   items,
   emptyLabel,
   renderItem,
 }: {
   id: string;
   label: string;
+  summary?: React.ReactNode;
   items: TItem[];
   emptyLabel: string;
   renderItem: (item: TItem) => React.ReactNode;
@@ -163,8 +165,11 @@ export function KanbanColumn<TItem extends ItemWithId>({
         isOver && "border-foreground/30 bg-muted/60",
       )}
     >
-      <header className="flex items-center justify-between border-b px-3 py-2 text-sm font-medium">
-        <span>{label}</span>
+      <header className="flex items-start justify-between gap-3 border-b px-3 py-2 text-sm font-medium">
+        <span className="flex min-w-0 flex-col gap-0.5">
+          <span>{label}</span>
+          {summary && <span className="text-xs font-normal text-muted-foreground">{summary}</span>}
+        </span>
         <span className="text-xs text-muted-foreground">{items.length}</span>
       </header>
       <SortableContext items={items.map((i) => i._id)} strategy={verticalListSortingStrategy}>

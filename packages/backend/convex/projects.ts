@@ -4,7 +4,7 @@ import { mutation, query } from "./_generated/server";
 import type { MutationCtx } from "./_generated/server";
 import { authComponent } from "./auth";
 import { requireUserId } from "./lib/auth";
-import { projectStatut, projectType } from "./lib/validators";
+import { assertMontant, projectStatut, projectType } from "./lib/validators";
 
 async function getMaxPosition(ctx: MutationCtx, statut: string): Promise<number> {
   const row = await ctx.db
@@ -56,6 +56,7 @@ const projectFields = {
   titre: v.string(),
   type: projectType,
   client: v.optional(v.string()),
+  montant: v.optional(v.number()),
   statut: projectStatut,
   description_md: v.optional(v.string()),
   date_debut: v.optional(v.number()),
@@ -67,6 +68,7 @@ const projectPatchFields = {
   titre: v.optional(v.string()),
   type: v.optional(projectType),
   client: v.optional(v.string()),
+  montant: v.optional(v.number()),
   statut: v.optional(projectStatut),
   description_md: v.optional(v.string()),
   date_debut: v.optional(v.number()),
@@ -78,6 +80,7 @@ export const create = mutation({
   args: projectFields,
   handler: async (ctx, args) => {
     const userId = await requireUserId(ctx);
+    assertMontant(args.montant);
     const position = await getMaxPosition(ctx, args.statut);
     const id = await ctx.db.insert("projects", {
       ...args,
@@ -93,6 +96,7 @@ export const update = mutation({
   args: { id: v.id("projects"), patch: v.object(projectPatchFields) },
   handler: async (ctx, args) => {
     await requireUserId(ctx);
+    assertMontant(args.patch.montant);
     const existing = await ctx.db.get(args.id);
     if (!existing || existing.deleted_at !== undefined) throw new Error("Projet introuvable");
     const nextPosition =

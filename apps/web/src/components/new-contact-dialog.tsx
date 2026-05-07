@@ -37,6 +37,7 @@ export function NewContactDialog({ defaultStage }: { defaultStage?: ContactStage
   const [telephone, setTelephone] = useState("");
   const [poste, setPoste] = useState("");
   const [contactSciam, setContactSciam] = useState("");
+  const [montant, setMontant] = useState("0");
   const [stage, setStage] = useState<ContactStage>(defaultStage ?? "nouveau");
   const [loading, setLoading] = useState(false);
 
@@ -50,6 +51,7 @@ export function NewContactDialog({ defaultStage }: { defaultStage?: ContactStage
     setTelephone("");
     setPoste("");
     setContactSciam("");
+    setMontant("0");
     setStage(defaultStage ?? "nouveau");
   };
 
@@ -66,6 +68,7 @@ export function NewContactDialog({ defaultStage }: { defaultStage?: ContactStage
         telephone: telephone.trim() || undefined,
         poste: poste.trim() || undefined,
         contact_sciam: contactSciam.trim() || undefined,
+        montant: Number(montant) || 0,
         stage,
       });
       toast.success("Contact créé.");
@@ -163,6 +166,18 @@ export function NewContactDialog({ defaultStage }: { defaultStage?: ContactStage
                   value={contactSciam}
                   onChange={(e) => setContactSciam(e.target.value)}
                   placeholder="Ex: Sophie Martin"
+                  className="h-11 text-base"
+                />
+              </div>
+              <div className="col-span-2 flex flex-col gap-1.5">
+                <Label htmlFor="nc-montant">Montant (€)</Label>
+                <Input
+                  id="nc-montant"
+                  type="number"
+                  min={0}
+                  step={100}
+                  value={montant}
+                  onChange={(e) => setMontant(e.target.value)}
                   className="h-11 text-base"
                 />
               </div>

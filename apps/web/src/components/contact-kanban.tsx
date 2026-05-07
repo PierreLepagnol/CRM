@@ -6,15 +6,19 @@ import { Badge } from "@CRM-APP/ui/components/badge";
 import { Button } from "@CRM-APP/ui/components/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@CRM-APP/ui/components/select";
 import { useMutation, useQuery } from "convex/react";
-import { Bell, Building2, Mail } from "lucide-react";
+import { Bell, Building2, Euro, Mail } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { cn } from "@CRM-APP/ui/lib/utils";
-import { formatDate } from "@/lib/format";
+import { formatDate, formatEuros } from "@/lib/format";
 import { STAGES, type ContactStage } from "@/lib/crm";
 import { useDndKanban, KanbanBoard, KanbanColumn, SortableItem, KanbanSkeleton } from "./kanban";
 
 type ContactDoc = Doc<"contacts">;
+
+function totalMontant(contacts: ContactDoc[]) {
+  return contacts.reduce((total, contact) => total + (contact.montant ?? 0), 0);
+}
 
 const COMMERCIAL_COLORS: { border: string; dot: string }[] = [
   { border: "border-l-blue-500", dot: "bg-blue-500" },
@@ -126,24 +130,29 @@ export function ContactKanban() {
         onDragEnd={onDragEnd}
         overlay={activeContact ? <ContactCard contact={activeContact as ContactDoc} colorClass={colorMap.get((activeContact as ContactDoc).contact_sciam ?? "")?.border} /> : null}
       >
-        {STAGES.map((stage) => (
-          <KanbanColumn
-            key={stage.id}
-            id={stage.id}
-            label={stage.label}
-            items={(byCol.get(stage.id) ?? []) as ContactDoc[]}
-            emptyLabel="Aucun contact"
-            renderItem={(contact) => (
-              <SortableItem
-                key={contact._id}
-                id={contact._id}
-                onSelect={() => router.push(`/contacts/${contact._id}`)}
-              >
-                <ContactCard contact={contact as ContactDoc} colorClass={colorMap.get((contact as ContactDoc).contact_sciam ?? "")?.border} />
-              </SortableItem>
-            )}
-          />
-        ))}
+        {STAGES.map((stage) => {
+          const contacts = (byCol.get(stage.id) ?? []) as ContactDoc[];
+
+          return (
+            <KanbanColumn
+              key={stage.id}
+              id={stage.id}
+              label={stage.label}
+              summary={formatEuros(totalMontant(contacts))}
+              items={contacts}
+              emptyLabel="Aucun contact"
+              renderItem={(contact) => (
+                <SortableItem
+                  key={contact._id}
+                  id={contact._id}
+                  onSelect={() => router.push(`/contacts/${contact._id}`)}
+                >
+                  <ContactCard contact={contact as ContactDoc} colorClass={colorMap.get((contact as ContactDoc).contact_sciam ?? "")?.border} />
+                </SortableItem>
+              )}
+            />
+          );
+        })}
       </KanbanBoard>
     </div>
   );
@@ -187,6 +196,10 @@ function ContactCard({ contact, colorClass }: { contact: ContactDoc; colorClass?
       {contact.poste && (
         <div className="mt-0.5 text-xs text-muted-foreground">{contact.poste}</div>
       )}
+      <div className="mt-2 flex items-center gap-1 text-xs font-medium">
+        <Euro className="size-3" />
+        {formatEuros(contact.montant ?? 0)}
+      </div>
       {contact.email && (
         <div className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
           <Mail className="size-3" />

@@ -5,7 +5,7 @@ import { mutation, query } from "./_generated/server";
 import type { MutationCtx } from "./_generated/server";
 import { authComponent } from "./auth";
 import { requireUserId } from "./lib/auth";
-import { contactStage } from "./lib/validators";
+import { assertMontant, contactStage } from "./lib/validators";
 
 async function getMaxPosition(ctx: MutationCtx, stage: string): Promise<number> {
   const rows = await ctx.db
@@ -99,6 +99,7 @@ const sharedOptionalFields = {
   telephone: v.optional(v.string()),
   poste: v.optional(v.string()),
   contact_sciam: v.optional(v.string()),
+  montant: v.optional(v.number()),
   notes_md: v.optional(v.string()),
   next_relance_at: v.optional(v.number()),
   stage: v.optional(contactStage),
@@ -118,6 +119,7 @@ const contactPatchFields = {
   telephone: v.optional(v.string()),
   poste: v.optional(v.string()),
   contact_sciam: v.optional(v.string()),
+  montant: v.optional(v.number()),
   notes_md: v.optional(v.string()),
   // null means "clear the field" (undefined is dropped by JSON serialization)
   next_relance_at: v.optional(v.union(v.number(), v.null())),
@@ -128,6 +130,7 @@ export const create = mutation({
   args: contactFields,
   handler: async (ctx, args) => {
     const userId = await requireUserId(ctx);
+    assertMontant(args.montant);
     const stage = args.stage ?? "nouveau";
     const position = await getMaxPosition(ctx, stage);
     const { stage: _stage, ...rest } = args;
@@ -146,6 +149,7 @@ export const update = mutation({
   args: { id: v.id("contacts"), patch: v.object(contactPatchFields) },
   handler: async (ctx, args) => {
     await requireUserId(ctx);
+    assertMontant(args.patch.montant);
     const existing = await ctx.db.get(args.id);
     if (!existing || existing.deleted_at !== undefined) throw new Error("Contact introuvable");
     const nextPosition =

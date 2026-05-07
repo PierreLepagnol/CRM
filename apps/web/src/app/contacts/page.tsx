@@ -14,7 +14,7 @@ import { useState } from "react";
 import { AppShell } from "@/components/app-shell";
 import { NewContactDialog } from "@/components/new-contact-dialog";
 import { stageLabel, stageBadgeClass } from "@/lib/crm";
-import { formatDate } from "@/lib/format";
+import { formatDate, formatEuros } from "@/lib/format";
 import { downloadCsv } from "@/lib/export";
 
 type ContactDoc = Doc<"contacts">;
@@ -30,6 +30,7 @@ function exportContacts(contacts: ContactDoc[]) {
       Téléphone: c.telephone ?? "",
       Poste: c.poste ?? "",
       "Contact SCIAM": c.contact_sciam ?? "",
+      Montant: formatEuros(c.montant ?? 0),
       Stage: stageLabel(c.stage),
       "Prochaine relance": c.next_relance_at ? formatDate(c.next_relance_at) : "",
     })),
@@ -96,6 +97,7 @@ function ContactsList() {
                 <th className="hidden px-4 py-2 text-left font-medium sm:table-cell">Entreprise</th>
                 <th className="hidden px-4 py-2 text-left font-medium md:table-cell">Email</th>
                 <th className="hidden px-4 py-2 text-left font-medium lg:table-cell">Poste</th>
+                <th className="px-4 py-2 text-left font-medium">Montant</th>
                 <th className="px-4 py-2 text-left font-medium">Stage</th>
                 <th className="hidden px-4 py-2 text-left font-medium xl:table-cell">Relance</th>
               </tr>
@@ -119,6 +121,7 @@ function ContactsList() {
                   <td className="hidden px-4 py-2 text-muted-foreground lg:table-cell">
                     {c.poste ?? "—"}
                   </td>
+                  <td className="px-4 py-2 font-medium">{formatEuros(c.montant ?? 0)}</td>
                   <td className="px-4 py-2">
                     <span className={cn("rounded px-2 py-0.5 text-xs font-medium", stageBadgeClass(c.stage))}>
                       {stageLabel(c.stage)}

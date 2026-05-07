@@ -42,6 +42,7 @@ export function ProjectSheet({
   const [draftProjectId, setDraftProjectId] = useState<Id<"projects"> | null>(null);
   const [titre, setTitre] = useState("");
   const [client, setClient] = useState("");
+  const [montant, setMontant] = useState("0");
   const [description, setDescription] = useState("");
   const [statut, setStatut] = useState<ProjectStatut>("a_demarrer");
   const [type, setType] = useState<"interne" | "mission">("interne");
@@ -53,6 +54,7 @@ export function ProjectSheet({
     setDraftProjectId(project._id);
     setTitre(project.titre);
     setClient(project.client ?? "");
+    setMontant(String(project.montant ?? 0));
     setDescription(project.description_md ?? "");
     setStatut(project.statut);
     setType(project.type);
@@ -153,6 +155,18 @@ export function ProjectSheet({
                 />
               </div>
             )}
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="ps-montant">Montant (€)</Label>
+              <Input
+                id="ps-montant"
+                type="number"
+                min={0}
+                step={100}
+                value={montant}
+                onChange={(e) => setMontant(e.target.value)}
+                onBlur={() => persist({ montant: Number(montant) || 0 })}
+              />
+            </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="ps-date-debut">Début</Label>

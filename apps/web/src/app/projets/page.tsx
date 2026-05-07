@@ -13,7 +13,7 @@ import { AppShell } from "@/components/app-shell";
 import { NewProjectDialog } from "@/components/new-project-dialog";
 import { ProjectKanban } from "@/components/project-kanban";
 import { STATUTS, statutLabel, statutBadgeClass } from "@/lib/crm";
-import { formatDate } from "@/lib/format";
+import { formatDate, formatEuros } from "@/lib/format";
 
 export default function ProjetsPage() {
   const searchParams = useSearchParams();
@@ -75,6 +75,7 @@ function ProjectsList() {
             <th className="px-4 py-2 text-left font-medium">Titre</th>
             <th className="px-4 py-2 text-left font-medium">Type</th>
             <th className="hidden px-4 py-2 text-left font-medium sm:table-cell">Client</th>
+            <th className="px-4 py-2 text-left font-medium">Montant</th>
             <th className="px-4 py-2 text-left font-medium">Statut</th>
             <th className="hidden px-4 py-2 text-left font-medium md:table-cell">Fin prévue</th>
           </tr>
@@ -99,6 +100,7 @@ function ProjectsList() {
               <td className="hidden px-4 py-2 text-muted-foreground sm:table-cell">
                 {p.client ?? "—"}
               </td>
+              <td className="px-4 py-2 font-medium">{formatEuros(p.montant ?? 0)}</td>
               <td className="px-4 py-2">
                 <span className={cn("rounded px-2 py-0.5 text-xs font-medium", statutBadgeClass(p.statut))}>
                   {statutLabel(p.statut)}

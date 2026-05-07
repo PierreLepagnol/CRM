@@ -5,15 +5,19 @@ import type { Doc, Id } from "@CRM-APP/backend/convex/_generated/dataModel";
 import { Badge } from "@CRM-APP/ui/components/badge";
 import { cn } from "@CRM-APP/ui/lib/utils";
 import { useMutation, useQuery } from "convex/react";
-import { CalendarDays } from "lucide-react";
+import { CalendarDays, Euro } from "lucide-react";
 import { useState } from "react";
 
 import { STATUTS, type ProjectStatut } from "@/lib/crm";
-import { formatDate } from "@/lib/format";
+import { formatDate, formatEuros } from "@/lib/format";
 import { KanbanBoard, KanbanColumn, KanbanSkeleton, SortableItem, useDndKanban } from "./kanban";
 import { ProjectSheet } from "./project-sheet";
 
 type ProjectDoc = Doc<"projects">;
+
+function totalMontant(projects: ProjectDoc[]) {
+  return projects.reduce((total, project) => total + (project.montant ?? 0), 0);
+}
 
 function useAllStatuts(): Map<ProjectStatut, ProjectDoc[]> | undefined {
   const aDemarrer = useQuery(api.projects.listByStatut, { statut: "a_demarrer" });
@@ -55,24 +59,29 @@ export function ProjectKanban() {
         onDragEnd={onDragEnd}
         overlay={activeProject ? <ProjectCard project={activeProject as ProjectDoc} /> : null}
       >
-        {STATUTS.map((statut) => (
-          <KanbanColumn
-            key={statut.id}
-            id={statut.id}
-            label={statut.label}
-            items={(byCol.get(statut.id) ?? []) as ProjectDoc[]}
-            emptyLabel="Aucun projet"
-            renderItem={(project) => (
-              <SortableItem
-                key={project._id}
-                id={project._id}
-                onSelect={() => setSelectedId(project._id as Id<"projects">)}
-              >
-                <ProjectCard project={project} />
-              </SortableItem>
-            )}
-          />
-        ))}
+        {STATUTS.map((statut) => {
+          const projects = (byCol.get(statut.id) ?? []) as ProjectDoc[];
+
+          return (
+            <KanbanColumn
+              key={statut.id}
+              id={statut.id}
+              label={statut.label}
+              summary={formatEuros(totalMontant(projects))}
+              items={projects}
+              emptyLabel="Aucun projet"
+              renderItem={(project) => (
+                <SortableItem
+                  key={project._id}
+                  id={project._id}
+                  onSelect={() => setSelectedId(project._id as Id<"projects">)}
+                >
+                  <ProjectCard project={project} />
+                </SortableItem>
+              )}
+            />
+          );
+        })}
       </KanbanBoard>
 
       <ProjectSheet projectId={selectedId} onClose={() => setSelectedId(null)} />
@@ -100,6 +109,10 @@ function ProjectCard({ project }: { project: ProjectDoc }) {
       {project.client && (
         <div className="text-xs text-muted-foreground">{project.client}</div>
       )}
+      <div className="mt-2 flex items-center gap-1 text-xs font-medium">
+        <Euro className="size-3" />
+        {formatEuros(project.montant ?? 0)}
+      </div>
       {(project.date_debut || project.date_fin_prevue) && (
         <div className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
           <CalendarDays className="size-3" />

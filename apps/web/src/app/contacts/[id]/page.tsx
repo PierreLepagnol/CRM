@@ -18,7 +18,7 @@ import { Skeleton } from "@CRM-APP/ui/components/skeleton";
 import { Textarea } from "@CRM-APP/ui/components/textarea";
 import { cn } from "@CRM-APP/ui/lib/utils";
 import { Authenticated, useMutation, useQuery } from "convex/react";
-import { ArrowLeft, Bell, BellOff, Mail, Phone, Plus, Trash2, X } from "lucide-react";
+import { ArrowLeft, Bell, BellOff, Euro, Mail, Phone, Plus, Trash2, X } from "lucide-react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
@@ -33,7 +33,7 @@ import {
   interactionLabel,
   interactionIcon,
 } from "@/lib/crm";
-import { formatDate } from "@/lib/format";
+import { formatDate, formatEuros } from "@/lib/format";
 
 export default function ContactDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -63,6 +63,7 @@ function ContactDetail({ id }: { id: Id<"contacts"> }) {
   const [telephone, setTelephone] = useState("");
   const [poste, setPoste] = useState("");
   const [contactSciam, setContactSciam] = useState("");
+  const [montant, setMontant] = useState("0");
   const [notes, setNotes] = useState("");
   const [stage, setStage] = useState<ContactStage>("nouveau");
   const [relanceDate, setRelanceDate] = useState("");
@@ -82,6 +83,7 @@ function ContactDetail({ id }: { id: Id<"contacts"> }) {
     setTelephone(contact.telephone ?? "");
     setPoste(contact.poste ?? "");
     setContactSciam(contact.contact_sciam ?? "");
+    setMontant(String(contact.montant ?? 0));
     setNotes(contact.notes_md ?? "");
     setStage(contact.stage);
     setRelanceDate(
@@ -211,6 +213,9 @@ function ContactDetail({ id }: { id: Id<"contacts"> }) {
             <Phone className="size-3.5" /> {contact.telephone}
           </a>
         )}
+        <span className="inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm">
+          <Euro className="size-3.5" /> {formatEuros(contact.montant ?? 0)}
+        </span>
       </div>
 
       <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -307,6 +312,18 @@ function ContactDetail({ id }: { id: Id<"contacts"> }) {
           <div className="flex flex-col gap-1.5 sm:col-span-2">
             <Label htmlFor="cd-sciam">Contact SCIAM référent</Label>
             <Input id="cd-sciam" value={contactSciam} onChange={(e) => setContactSciam(e.target.value)} onBlur={() => persist({ contact_sciam: contactSciam.trim() || undefined })} />
+          </div>
+          <div className="flex flex-col gap-1.5 sm:col-span-2">
+            <Label htmlFor="cd-montant">Montant (€)</Label>
+            <Input
+              id="cd-montant"
+              type="number"
+              min={0}
+              step={100}
+              value={montant}
+              onChange={(e) => setMontant(e.target.value)}
+              onBlur={() => persist({ montant: Number(montant) || 0 })}
+            />
           </div>
         </div>
         <div className="mt-4 flex flex-col gap-1.5">

@@ -36,6 +36,7 @@ export function NewProjectDialog({ defaultStatut }: { defaultStatut?: ProjectSta
   const [titre, setTitre] = useState("");
   const [type, setType] = useState<ProjectType>("interne");
   const [client, setClient] = useState("");
+  const [montant, setMontant] = useState("0");
   const [statut, setStatut] = useState<ProjectStatut>(defaultStatut ?? "a_demarrer");
   const [dateDebut, setDateDebut] = useState("");
   const [dateFinPrevue, setDateFinPrevue] = useState("");
@@ -48,6 +49,7 @@ export function NewProjectDialog({ defaultStatut }: { defaultStatut?: ProjectSta
     setTitre("");
     setType("interne");
     setClient("");
+    setMontant("0");
     setStatut(defaultStatut ?? "a_demarrer");
     setDateDebut("");
     setDateFinPrevue("");
@@ -63,6 +65,7 @@ export function NewProjectDialog({ defaultStatut }: { defaultStatut?: ProjectSta
         titre: titre.trim(),
         type,
         client: client.trim() || undefined,
+        montant: Number(montant) || 0,
         statut,
         date_debut: dateDebut ? new Date(dateDebut).getTime() : undefined,
         date_fin_prevue: dateFinPrevue ? new Date(dateFinPrevue).getTime() : undefined,
@@ -150,6 +153,17 @@ export function NewProjectDialog({ defaultStatut }: { defaultStatut?: ProjectSta
               />
             </div>
           )}
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="np-montant">Montant (€)</Label>
+            <Input
+              id="np-montant"
+              type="number"
+              min={0}
+              step={100}
+              value={montant}
+              onChange={(e) => setMontant(e.target.value)}
+            />
+          </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="np-date-debut">Début</Label>
