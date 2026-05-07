@@ -20,6 +20,10 @@ function totalMontant(contacts: ContactDoc[]) {
   return contacts.reduce((total, contact) => total + (contact.montant ?? 0), 0);
 }
 
+function shouldShowMontantTotal(stage: ContactStage) {
+  return stage === "proposition" || stage === "gagne";
+}
+
 const COMMERCIAL_COLORS: { border: string; dot: string }[] = [
   { border: "border-l-blue-500", dot: "bg-blue-500" },
   { border: "border-l-violet-500", dot: "bg-violet-500" },
@@ -138,7 +142,7 @@ export function ContactKanban() {
               key={stage.id}
               id={stage.id}
               label={stage.label}
-              summary={formatEuros(totalMontant(contacts))}
+              summary={shouldShowMontantTotal(stage.id) ? formatEuros(totalMontant(contacts)) : undefined}
               items={contacts}
               emptyLabel="Aucun contact"
               renderItem={(contact) => (
