@@ -4,13 +4,35 @@ import { v } from "convex/values";
 import {
   contactStage,
   interactionType,
+  pageKey,
   projectStatut,
   projectType,
+  roleKey,
   timestampMs,
   userIdString,
 } from "./lib/validators";
 
 export default defineSchema({
+  // Miroir applicatif des utilisateurs SSO (better-auth gère sa propre table
+  // en interne). Alimenté par les triggers better-auth, porte le rôle.
+  app_users: defineTable({
+    user_id: userIdString, // better-auth user._id (lien canonique)
+    email: v.string(),
+    name: v.string(),
+    image: v.optional(v.string()),
+    role: roleKey,
+    updated_at: timestampMs,
+  })
+    .index("by_user_id", ["user_id"])
+    .index("by_email", ["email"]),
+
+  // Pages autorisées par rôle, éditable depuis l'admin.
+  role_permissions: defineTable({
+    role: roleKey,
+    pages: v.array(pageKey),
+    updated_at: timestampMs,
+  }).index("by_role", ["role"]),
+
   contacts: defineTable({
     prenom: v.string(),
     nom: v.string(),
@@ -19,7 +41,9 @@ export default defineSchema({
     email: v.optional(v.string()),
     telephone: v.optional(v.string()),
     poste: v.optional(v.string()),
-    contact_sciam: v.optional(v.string()),
+    contact_sciam: v.optional(v.string()), // legacy: texte libre, remplacé par owner_id
+    owner_id: v.optional(userIdString), // propriétaire (app_users.user_id)
+    responsible_ids: v.optional(v.array(userIdString)), // responsables additionnels
     notes_md: v.optional(v.string()),
     stage: contactStage,
     next_relance_at: v.optional(timestampMs),

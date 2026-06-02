@@ -8,15 +8,20 @@
  * @module
  */
 
+import type * as access from "../access.js";
 import type * as auth from "../auth.js";
 import type * as contacts from "../contacts.js";
 import type * as healthCheck from "../healthCheck.js";
 import type * as http from "../http.js";
 import type * as interactions from "../interactions.js";
+import type * as lib_accessLogic from "../lib/accessLogic.js";
 import type * as lib_auth from "../lib/auth.js";
+import type * as lib_contactPatch from "../lib/contactPatch.js";
 import type * as lib_validators from "../lib/validators.js";
 import type * as migrations from "../migrations.js";
 import type * as projects from "../projects.js";
+import type * as userSync from "../userSync.js";
+import type * as users from "../users.js";
 
 import type {
   ApiFromModules,
@@ -25,15 +30,20 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  access: typeof access;
   auth: typeof auth;
   contacts: typeof contacts;
   healthCheck: typeof healthCheck;
   http: typeof http;
   interactions: typeof interactions;
+  "lib/accessLogic": typeof lib_accessLogic;
   "lib/auth": typeof lib_auth;
+  "lib/contactPatch": typeof lib_contactPatch;
   "lib/validators": typeof lib_validators;
   migrations: typeof migrations;
   projects: typeof projects;
+  userSync: typeof userSync;
+  users: typeof users;
 }>;
 
 /**

@@ -7,7 +7,8 @@
   "scripts": {
     "dev": "convex dev",
     "dev:setup": "convex dev --configure --until-success",
-    "deploy": "convex deploy --yes"
+    "deploy": "convex deploy --yes",
+    "test": "vitest run"
   },
   "dependencies": {
     "@convex-dev/better-auth": "catalog:",
@@ -18,7 +19,10 @@
   },
   "devDependencies": {
     "@CRM-APP/config": "workspace:*",
+    "@edge-runtime/vm": "^5.0.0",
     "@types/node": "^24.3.0",
-    "typescript": "catalog:"
+    "convex-test": "^0.0.53",
+    "typescript": "catalog:",
+    "vitest": "^4.1.8"
   }
 }

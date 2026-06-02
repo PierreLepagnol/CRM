@@ -11,21 +11,26 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@CRM-APP/ui/components/sidebar";
-import { FolderKanban, Kanban, Users } from "lucide-react";
+import { FolderKanban, Kanban, Settings, Users } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
+import { useAccess, type PageKey } from "@/lib/use-access";
 import UserMenu from "./user-menu";
 
 const NAV = [
-  { href: "/pipeline", label: "Pipeline", icon: Kanban },
-  { href: "/contacts", label: "Contacts", icon: Users },
-  { href: "/projets", label: "Projets", icon: FolderKanban },
+  { href: "/pipeline", label: "Pipeline", icon: Kanban, page: "pipeline" as PageKey },
+  { href: "/contacts", label: "Contacts", icon: Users, page: "contacts" as PageKey },
+  { href: "/projets", label: "Projets", icon: FolderKanban, page: "projets" as PageKey },
+  { href: "/admin", label: "Administration", icon: Settings, page: "admin" as PageKey },
 ] as const;
 
 export function AppSidebar() {
   const pathname = usePathname();
+  const { can, me } = useAccess();
+  // Tant que l'accès n'est pas chargé, on n'affiche rien pour éviter un flash.
+  const items = me === null ? [] : NAV.filter((item) => can(item.page));
 
   return (
     <Sidebar collapsible="icon">
@@ -52,7 +57,7 @@ export function AppSidebar() {
         <SidebarGroup>
           <SidebarGroupContent>
             <SidebarMenu>
-              {NAV.map(({ href, label, icon: Icon }) => {
+              {items.map(({ href, label, icon: Icon }) => {
                 const active =
                   pathname === href || pathname.startsWith(`${href}/`);
                 return (

@@ -13,33 +13,27 @@ import { useState } from "react";
 
 import { AppShell } from "@/components/app-shell";
 import { NewContactDialog } from "@/components/new-contact-dialog";
+import { useAppUsers } from "@/components/user-picker";
+import { buildContactCsvRows } from "@/lib/contact-export";
 import { stageLabel, stageBadgeClass } from "@/lib/crm";
 import { formatDate, formatEuros } from "@/lib/format";
 import { downloadCsv } from "@/lib/export";
 
 type ContactDoc = Doc<"contacts">;
 
-function exportContacts(contacts: ContactDoc[]) {
+function exportContacts(
+  contacts: ContactDoc[],
+  resolveName: (userId: string) => string | undefined,
+) {
   downloadCsv(
     `contacts-${new Date().toISOString().slice(0, 10)}.csv`,
-    contacts.map((c) => ({
-      Prénom: c.prenom,
-      Nom: c.nom,
-      Entreprise: c.entreprise ?? "",
-      Email: c.email ?? "",
-      Téléphone: c.telephone ?? "",
-      Poste: c.poste ?? "",
-      "Contact SCIAM": c.contact_sciam ?? "",
-      Montant: formatEuros(c.montant ?? 0),
-      Stage: stageLabel(c.stage),
-      "Prochaine relance": c.next_relance_at ? formatDate(c.next_relance_at) : "",
-    })),
+    buildContactCsvRows(contacts, resolveName),
   );
 }
 
 export default function ContactsPage() {
   return (
-    <AppShell title="Contacts" actions={<NewContactDialog />}>
+    <AppShell title="Contacts" pageKey="contacts" actions={<NewContactDialog />}>
       <Authenticated>
         <ContactsList />
       </Authenticated>
@@ -51,6 +45,9 @@ function ContactsList() {
   const [q, setQ] = useState("");
   const allContacts = useQuery(api.contacts.list, {});
   const searchResults = useQuery(api.contacts.search, q.trim() ? { q: q.trim() } : "skip");
+  const users = useAppUsers();
+  const resolveName = (userId: string) =>
+    users.find((u) => u.user_id === userId)?.name;
 
   const contacts = q.trim() ? (searchResults ?? []) : (allContacts ?? []);
   const loading = q.trim() ? searchResults === undefined : allContacts === undefined;
@@ -70,7 +67,7 @@ function ContactsList() {
         <Button
           variant="outline"
           size="sm"
-          onClick={() => allContacts && exportContacts(allContacts)}
+          onClick={() => allContacts && exportContacts(allContacts, resolveName)}
           disabled={!allContacts || allContacts.length === 0}
         >
           <Download className="size-4" />

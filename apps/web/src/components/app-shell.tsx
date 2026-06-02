@@ -16,14 +16,18 @@ import { redirect } from "next/navigation";
 
 import { AppSidebar } from "./app-sidebar";
 import { ModeToggle } from "./mode-toggle";
+import { PageGuard } from "./page-guard";
+import type { PageKey } from "@/lib/use-access";
 
 type AppShellProps = {
   title: string;
   actions?: ReactNode;
   children: ReactNode;
+  /** Si fourni, le contenu est protégé par le contrôle d'accès du rôle. */
+  pageKey?: PageKey;
 };
 
-export function AppShell({ title, actions, children }: AppShellProps) {
+export function AppShell({ title, actions, children, pageKey }: AppShellProps) {
   const { isLoading, isAuthenticated } = useConvexAuth();
 
   if (!isLoading && !isAuthenticated) {
@@ -50,7 +54,9 @@ export function AppShell({ title, actions, children }: AppShellProps) {
 
         <RelanceAlertBar />
 
-        <div className="flex-1 overflow-auto">{children}</div>
+        <div className="flex-1 overflow-auto">
+          {pageKey ? <PageGuard pageKey={pageKey}>{children}</PageGuard> : children}
+        </div>
       </SidebarInset>
     </SidebarProvider>
   );

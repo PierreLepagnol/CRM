@@ -2,6 +2,7 @@ import { internalAction, internalMutation } from "./_generated/server";
 import { components } from "./_generated/api";
 import { v } from "convex/values";
 import type { Id } from "./_generated/dataModel";
+import { matchOwnerByName } from "./lib/accessLogic";
 
 // Run once from the Convex dashboard to purge all credential (email/password)
 // accounts and orphaned users that have no Microsoft SSO account.
@@ -128,5 +129,36 @@ export const importDevData = internalMutation({
     }
 
     return { contacts: Object.keys(idMap).length, interactions: importedInteractions };
+  },
+});
+
+// One-shot backfill: map legacy free-text contact_sciam to owner_id by matching
+// the SSO display name in app_users. Run once after deploy:
+//   npx convex run migrations:backfillContactOwners
+// Contacts without a single confident name match are left untouched.
+export const backfillContactOwners = internalMutation({
+  args: {},
+  handler: async (ctx) => {
+    const users = (await ctx.db.query("app_users").collect()).map((u) => ({
+      user_id: u.user_id,
+      name: u.name,
+    }));
+
+    const contacts = await ctx.db.query("contacts").collect();
+    let matched = 0;
+    let skipped = 0;
+
+    for (const c of contacts) {
+      if (c.deleted_at !== undefined || c.owner_id) continue;
+      const ownerId = matchOwnerByName(c.contact_sciam, users);
+      if (ownerId) {
+        await ctx.db.patch(c._id, { owner_id: ownerId, updated_at: Date.now() });
+        matched++;
+      } else if (c.contact_sciam) {
+        skipped++;
+      }
+    }
+
+    return { matched, skipped };
   },
 });

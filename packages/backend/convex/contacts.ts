@@ -3,8 +3,9 @@ import { v } from "convex/values";
 import type { Id } from "./_generated/dataModel";
 import { mutation, query } from "./_generated/server";
 import type { MutationCtx } from "./_generated/server";
-import { authComponent } from "./auth";
+import { guardContactRead, requireContactWrite } from "./access";
 import { requireUserId } from "./lib/auth";
+import { toClearableDbPatch } from "./lib/contactPatch";
 import { assertMontant, contactStage } from "./lib/validators";
 
 async function getMaxPosition(ctx: MutationCtx, stage: string): Promise<number> {
@@ -20,7 +21,7 @@ async function getMaxPosition(ctx: MutationCtx, stage: string): Promise<number> 
 export const list = query({
   args: {},
   handler: async (ctx) => {
-    if (!await authComponent.safeGetAuthUser(ctx)) return [];
+    if (!(await guardContactRead(ctx))) return [];
     const rows = await ctx.db
       .query("contacts")
       .withIndex("by_updated_at")
@@ -33,7 +34,7 @@ export const list = query({
 export const listByStage = query({
   args: { stage: contactStage },
   handler: async (ctx, args) => {
-    if (!await authComponent.safeGetAuthUser(ctx)) return [];
+    if (!(await guardContactRead(ctx))) return [];
     const rows = await ctx.db
       .query("contacts")
       .withIndex("by_stage_and_position", (q) => q.eq("stage", args.stage))
@@ -47,7 +48,7 @@ export const listByStage = query({
 export const get = query({
   args: { id: v.id("contacts") },
   handler: async (ctx, args) => {
-    if (!await authComponent.safeGetAuthUser(ctx)) return null;
+    if (!(await guardContactRead(ctx))) return null;
     const row = await ctx.db.get(args.id);
     return row?.deleted_at === undefined ? row : null;
   },
@@ -56,7 +57,7 @@ export const get = query({
 export const search = query({
   args: { q: v.string() },
   handler: async (ctx, args) => {
-    if (!await authComponent.safeGetAuthUser(ctx)) return [];
+    if (!(await guardContactRead(ctx))) return [];
     if (!args.q.trim()) return [];
     const byNom = await ctx.db
       .query("contacts")
@@ -74,8 +75,7 @@ export const search = query({
 export const listDueRelances = query({
   args: {},
   handler: async (ctx) => {
-    const user = await authComponent.safeGetAuthUser(ctx);
-    if (!user) return [];
+    if (!(await guardContactRead(ctx))) return [];
     const limit = Date.now() + 24 * 60 * 60 * 1000;
     const rows = await ctx.db
       .query("contacts")
@@ -99,6 +99,8 @@ const sharedOptionalFields = {
   telephone: v.optional(v.string()),
   poste: v.optional(v.string()),
   contact_sciam: v.optional(v.string()),
+  owner_id: v.optional(v.string()),
+  responsible_ids: v.optional(v.array(v.string())),
   montant: v.optional(v.number()),
   notes_md: v.optional(v.string()),
   next_relance_at: v.optional(v.number()),
@@ -119,9 +121,11 @@ const contactPatchFields = {
   telephone: v.optional(v.string()),
   poste: v.optional(v.string()),
   contact_sciam: v.optional(v.string()),
+  // null means "clear the field" (undefined is dropped by JSON serialization)
+  owner_id: v.optional(v.union(v.string(), v.null())),
+  responsible_ids: v.optional(v.array(v.string())),
   montant: v.optional(v.number()),
   notes_md: v.optional(v.string()),
-  // null means "clear the field" (undefined is dropped by JSON serialization)
   next_relance_at: v.optional(v.union(v.number(), v.null())),
   stage: v.optional(contactStage),
 } as const;
@@ -129,6 +133,7 @@ const contactPatchFields = {
 export const create = mutation({
   args: contactFields,
   handler: async (ctx, args) => {
+    await requireContactWrite(ctx);
     const userId = await requireUserId(ctx);
     assertMontant(args.montant);
     const stage = args.stage ?? "nouveau";
@@ -136,6 +141,7 @@ export const create = mutation({
     const { stage: _stage, ...rest } = args;
     const id = await ctx.db.insert("contacts", {
       ...rest,
+      owner_id: rest.owner_id ?? userId,
       stage,
       position,
       created_by: userId,
@@ -148,7 +154,7 @@ export const create = mutation({
 export const update = mutation({
   args: { id: v.id("contacts"), patch: v.object(contactPatchFields) },
   handler: async (ctx, args) => {
-    await requireUserId(ctx);
+    await requireContactWrite(ctx);
     assertMontant(args.patch.montant);
     const existing = await ctx.db.get(args.id);
     if (!existing || existing.deleted_at !== undefined) throw new Error("Contact introuvable");
@@ -156,12 +162,10 @@ export const update = mutation({
       args.patch.stage !== undefined && args.patch.stage !== existing.stage
         ? await getMaxPosition(ctx, args.patch.stage)
         : existing.position;
-    const { next_relance_at, ...restPatch } = args.patch;
+    // null → undefined supprime le champ (owner_id, next_relance_at).
+    const dbPatch = toClearableDbPatch(args.patch);
     await ctx.db.patch(args.id, {
-      ...restPatch,
-      ...(next_relance_at !== undefined
-        ? { next_relance_at: next_relance_at === null ? undefined : next_relance_at }
-        : {}),
+      ...dbPatch,
       position: nextPosition,
       updated_at: Date.now(),
     });
@@ -176,7 +180,7 @@ export const moveToStage = mutation({
     targetIndex: v.number(),
   },
   handler: async (ctx, args) => {
-    await requireUserId(ctx);
+    await requireContactWrite(ctx);
     const contact = await ctx.db.get(args.id);
     if (!contact || contact.deleted_at !== undefined) throw new Error("Contact introuvable");
 
@@ -203,7 +207,7 @@ export const moveToStage = mutation({
 export const remove = mutation({
   args: { id: v.id("contacts") },
   handler: async (ctx, args) => {
-    await requireUserId(ctx);
+    await requireContactWrite(ctx);
     const existing = await ctx.db.get(args.id);
     if (!existing) throw new Error("Contact introuvable");
     await ctx.db.patch(args.id, { deleted_at: Date.now(), updated_at: Date.now() });

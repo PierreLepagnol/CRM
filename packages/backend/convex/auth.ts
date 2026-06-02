@@ -1,11 +1,20 @@
-import { createClient, type GenericCtx } from "@convex-dev/better-auth";
+import {
+  createClient,
+  type AuthFunctions,
+  type GenericCtx,
+} from "@convex-dev/better-auth";
 import { convex } from "@convex-dev/better-auth/plugins";
 import { betterAuth } from "better-auth/minimal";
 
-import { components } from "./_generated/api";
+import { components, internal } from "./_generated/api";
 import type { DataModel } from "./_generated/dataModel";
 import { query } from "./_generated/server";
 import authConfig from "./auth.config";
+import {
+  syncUserOnCreate,
+  syncUserOnDelete,
+  syncUserOnUpdate,
+} from "./userSync";
 
 const siteUrl = process.env.SITE_URL!;
 const trustedOrigins = [
@@ -16,7 +25,29 @@ const trustedOrigins = [
     .filter(Boolean),
 ];
 
-export const authComponent = createClient<DataModel>(components.betterAuth);
+// Annotation explicite pour casser l'inférence circulaire (auth ↔ internal).
+const authFunctions: AuthFunctions = internal.auth as unknown as AuthFunctions;
+
+export const authComponent = createClient<DataModel>(components.betterAuth, {
+  triggers: {
+    user: {
+      onCreate: async (ctx, user) => {
+        await syncUserOnCreate(ctx, user as { _id: string });
+      },
+      onUpdate: async (ctx, newUser) => {
+        await syncUserOnUpdate(ctx, newUser as { _id: string });
+      },
+      onDelete: async (ctx, user) => {
+        await syncUserOnDelete(ctx, user as { _id: string });
+      },
+    },
+  },
+  authFunctions,
+});
+
+// Mutations internes exécutant les callbacks de triggers ci-dessus,
+// référencées par `authFunctions`.
+export const { onCreate, onUpdate, onDelete } = authComponent.triggersApi();
 
 function createAuth(ctx: GenericCtx<DataModel>) {
   return betterAuth({
