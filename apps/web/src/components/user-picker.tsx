@@ -13,6 +13,7 @@ import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
@@ -124,30 +125,32 @@ export function ResponsiblesMultiSelect({
           <ChevronsUpDown className="size-4 shrink-0 opacity-50" />
         </DropdownMenuTrigger>
         <DropdownMenuContent className="w-64 bg-card" align="start">
-          <DropdownMenuLabel>Responsables</DropdownMenuLabel>
-          <DropdownMenuSeparator />
-          {users.length === 0 ? (
-            <div className="px-2 py-1.5 text-sm text-muted-foreground">
-              Aucun utilisateur.
-            </div>
-          ) : (
-            users.map((u) => (
-              <DropdownMenuCheckboxItem
-                key={u.user_id}
-                checked={value.includes(u.user_id)}
-                onCheckedChange={(checked) => toggle(u.user_id, checked)}
-                closeOnClick={false}
-              >
-                <span className="flex items-center gap-2">
-                  <Avatar size="sm">
-                    {u.image && <AvatarImage src={u.image} alt={u.name} />}
-                    <AvatarFallback>{userInitials(u.name)}</AvatarFallback>
-                  </Avatar>
-                  {u.name}
-                </span>
-              </DropdownMenuCheckboxItem>
-            ))
-          )}
+          <DropdownMenuGroup>
+            <DropdownMenuLabel>Responsables</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            {users.length === 0 ? (
+              <div className="px-2 py-1.5 text-sm text-muted-foreground">
+                Aucun utilisateur.
+              </div>
+            ) : (
+              users.map((u) => (
+                <DropdownMenuCheckboxItem
+                  key={u.user_id}
+                  checked={value.includes(u.user_id)}
+                  onCheckedChange={(checked) => toggle(u.user_id, checked)}
+                  closeOnClick={false}
+                >
+                  <span className="flex items-center gap-2">
+                    <Avatar size="sm">
+                      {u.image && <AvatarImage src={u.image} alt={u.name} />}
+                      <AvatarFallback>{userInitials(u.name)}</AvatarFallback>
+                    </Avatar>
+                    {u.name}
+                  </span>
+                </DropdownMenuCheckboxItem>
+              ))
+            )}
+          </DropdownMenuGroup>
         </DropdownMenuContent>
       </DropdownMenu>
       {selected.length > 0 && (
