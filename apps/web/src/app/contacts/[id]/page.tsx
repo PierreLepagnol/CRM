@@ -26,6 +26,11 @@ import { toast } from "sonner";
 
 import { AppShell } from "@/components/app-shell";
 import {
+  OwnerSelect,
+  ResponsiblesMultiSelect,
+  useAppUsers,
+} from "@/components/user-picker";
+import {
   STAGES,
   INTERACTION_TYPES,
   type ContactStage,
@@ -38,7 +43,7 @@ import { formatDate, formatEuros } from "@/lib/format";
 export default function ContactDetailPage() {
   const { id } = useParams<{ id: string }>();
   return (
-    <AppShell title="Contact">
+    <AppShell title="Contact" pageKey="contacts">
       <Authenticated>
         <ContactDetail id={id as Id<"contacts">} />
       </Authenticated>
@@ -62,8 +67,10 @@ function ContactDetail({ id }: { id: Id<"contacts"> }) {
   const [email, setEmail] = useState("");
   const [telephone, setTelephone] = useState("");
   const [poste, setPoste] = useState("");
-  const [contactSciam, setContactSciam] = useState("");
+  const [ownerId, setOwnerId] = useState<string | undefined>(undefined);
+  const [responsibleIds, setResponsibleIds] = useState<string[]>([]);
   const [montant, setMontant] = useState("0");
+  const users = useAppUsers();
   const [notes, setNotes] = useState("");
   const [stage, setStage] = useState<ContactStage>("nouveau");
   const [relanceDate, setRelanceDate] = useState("");
@@ -82,7 +89,8 @@ function ContactDetail({ id }: { id: Id<"contacts"> }) {
     setEmail(contact.email ?? "");
     setTelephone(contact.telephone ?? "");
     setPoste(contact.poste ?? "");
-    setContactSciam(contact.contact_sciam ?? "");
+    setOwnerId(contact.owner_id ?? undefined);
+    setResponsibleIds(contact.responsible_ids ?? []);
     setMontant(String(contact.montant ?? 0));
     setNotes(contact.notes_md ?? "");
     setStage(contact.stage);
@@ -309,9 +317,28 @@ function ContactDetail({ id }: { id: Id<"contacts"> }) {
             <Label htmlFor="cd-tel">Téléphone</Label>
             <Input id="cd-tel" value={telephone} onChange={(e) => setTelephone(e.target.value)} onBlur={() => persist({ telephone: telephone.trim() || undefined })} />
           </div>
-          <div className="flex flex-col gap-1.5 sm:col-span-2">
-            <Label htmlFor="cd-sciam">Contact SCIAM référent</Label>
-            <Input id="cd-sciam" value={contactSciam} onChange={(e) => setContactSciam(e.target.value)} onBlur={() => persist({ contact_sciam: contactSciam.trim() || undefined })} />
+          <div className="flex flex-col gap-1.5">
+            <Label>Propriétaire</Label>
+            <OwnerSelect
+              users={users}
+              value={ownerId}
+              onChange={(v) => {
+                setOwnerId(v);
+                // null efface explicitement le propriétaire (undefined serait ignoré).
+                void persist({ owner_id: v ?? null });
+              }}
+            />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <Label>Responsables</Label>
+            <ResponsiblesMultiSelect
+              users={users}
+              value={responsibleIds}
+              onChange={(ids) => {
+                setResponsibleIds(ids);
+                void persist({ responsible_ids: ids });
+              }}
+            />
           </div>
           <div className="flex flex-col gap-1.5 sm:col-span-2">
             <Label htmlFor="cd-montant">Montant (€)</Label>

@@ -1,8 +1,8 @@
-import { v } from "convex/values";
+import { ConvexError, v } from "convex/values";
 
 import { mutation, query } from "./_generated/server";
 import type { MutationCtx } from "./_generated/server";
-import { authComponent } from "./auth";
+import { hasPageAccess, requirePageAccess } from "./access";
 import { requireUserId } from "./lib/auth";
 import { assertMontant, projectStatut, projectType } from "./lib/validators";
 
@@ -16,10 +16,17 @@ async function getMaxPosition(ctx: MutationCtx, statut: string): Promise<number>
   return row ? row.position + 1 : 0;
 }
 
+async function guardProjetsRead(ctx: Parameters<typeof hasPageAccess>[0]) {
+  const access = await hasPageAccess(ctx, "projets");
+  if (access === null) return false; // non authentifié → chargement
+  if (!access) throw new ConvexError("Accès refusé");
+  return true;
+}
+
 export const list = query({
   args: {},
   handler: async (ctx) => {
-    if (!await authComponent.safeGetAuthUser(ctx)) return [];
+    if (!(await guardProjetsRead(ctx))) return [];
     const rows = await ctx.db
       .query("projects")
       .withIndex("by_updated_at")
@@ -32,7 +39,7 @@ export const list = query({
 export const listByStatut = query({
   args: { statut: projectStatut },
   handler: async (ctx, args) => {
-    if (!await authComponent.safeGetAuthUser(ctx)) return [];
+    if (!(await guardProjetsRead(ctx))) return [];
     const rows = await ctx.db
       .query("projects")
       .withIndex("by_statut_and_position", (q) => q.eq("statut", args.statut))
@@ -46,7 +53,9 @@ export const listByStatut = query({
 export const get = query({
   args: { id: v.id("projects") },
   handler: async (ctx, args) => {
-    if (!await authComponent.safeGetAuthUser(ctx)) return null;
+    const access = await hasPageAccess(ctx, "projets");
+    if (access === null) return null;
+    if (!access) throw new ConvexError("Accès refusé");
     const row = await ctx.db.get(args.id);
     return row?.deleted_at === undefined ? row : null;
   },
@@ -79,6 +88,7 @@ const projectPatchFields = {
 export const create = mutation({
   args: projectFields,
   handler: async (ctx, args) => {
+    await requirePageAccess(ctx, "projets");
     const userId = await requireUserId(ctx);
     assertMontant(args.montant);
     const position = await getMaxPosition(ctx, args.statut);
@@ -95,6 +105,7 @@ export const create = mutation({
 export const update = mutation({
   args: { id: v.id("projects"), patch: v.object(projectPatchFields) },
   handler: async (ctx, args) => {
+    await requirePageAccess(ctx, "projets");
     await requireUserId(ctx);
     assertMontant(args.patch.montant);
     const existing = await ctx.db.get(args.id);
@@ -119,6 +130,7 @@ export const moveToStatut = mutation({
     targetIndex: v.number(),
   },
   handler: async (ctx, args) => {
+    await requirePageAccess(ctx, "projets");
     await requireUserId(ctx);
     const project = await ctx.db.get(args.id);
     if (!project || project.deleted_at !== undefined) throw new Error("Projet introuvable");
@@ -146,6 +158,7 @@ export const moveToStatut = mutation({
 export const remove = mutation({
   args: { id: v.id("projects") },
   handler: async (ctx, args) => {
+    await requirePageAccess(ctx, "projets");
     await requireUserId(ctx);
     const existing = await ctx.db.get(args.id);
     if (!existing) throw new Error("Projet introuvable");

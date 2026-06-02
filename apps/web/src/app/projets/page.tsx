@@ -23,6 +23,7 @@ export default function ProjetsPage() {
   return (
     <AppShell
       title="Projets"
+      pageKey="projets"
       actions={
         <div className="flex items-center gap-2">
           <Tabs value={view}>

@@ -27,6 +27,11 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 import { STAGES, type ContactStage } from "@/lib/crm";
+import {
+  OwnerSelect,
+  ResponsiblesMultiSelect,
+  useAppUsers,
+} from "./user-picker";
 
 export function NewContactDialog({ defaultStage }: { defaultStage?: ContactStage }) {
   const [open, setOpen] = useState(false);
@@ -36,12 +41,14 @@ export function NewContactDialog({ defaultStage }: { defaultStage?: ContactStage
   const [email, setEmail] = useState("");
   const [telephone, setTelephone] = useState("");
   const [poste, setPoste] = useState("");
-  const [contactSciam, setContactSciam] = useState("");
+  const [ownerId, setOwnerId] = useState<string | undefined>(undefined);
+  const [responsibleIds, setResponsibleIds] = useState<string[]>([]);
   const [montant, setMontant] = useState("0");
   const [stage, setStage] = useState<ContactStage>(defaultStage ?? "nouveau");
   const [loading, setLoading] = useState(false);
 
   const create = useMutation(api.contacts.create);
+  const users = useAppUsers();
 
   const reset = () => {
     setPrenom("");
@@ -50,7 +57,8 @@ export function NewContactDialog({ defaultStage }: { defaultStage?: ContactStage
     setEmail("");
     setTelephone("");
     setPoste("");
-    setContactSciam("");
+    setOwnerId(undefined);
+    setResponsibleIds([]);
     setMontant("0");
     setStage(defaultStage ?? "nouveau");
   };
@@ -67,7 +75,8 @@ export function NewContactDialog({ defaultStage }: { defaultStage?: ContactStage
         email: email.trim() || undefined,
         telephone: telephone.trim() || undefined,
         poste: poste.trim() || undefined,
-        contact_sciam: contactSciam.trim() || undefined,
+        owner_id: ownerId,
+        responsible_ids: responsibleIds.length > 0 ? responsibleIds : undefined,
         montant: Number(montant) || 0,
         stage,
       });
@@ -160,13 +169,15 @@ export function NewContactDialog({ defaultStage }: { defaultStage?: ContactStage
                 />
               </div>
               <div className="flex flex-col gap-1.5">
-                <Label htmlFor="nc-sciam">Contact SCIAM référent</Label>
-                <Input
-                  id="nc-sciam"
-                  value={contactSciam}
-                  onChange={(e) => setContactSciam(e.target.value)}
-                  placeholder="Ex: Sophie Martin"
-                  className="h-11 text-base"
+                <Label>Propriétaire</Label>
+                <OwnerSelect users={users} value={ownerId} onChange={setOwnerId} />
+              </div>
+              <div className="col-span-2 flex flex-col gap-1.5">
+                <Label>Responsables</Label>
+                <ResponsiblesMultiSelect
+                  users={users}
+                  value={responsibleIds}
+                  onChange={setResponsibleIds}
                 />
               </div>
               <div className="col-span-2 flex flex-col gap-1.5">

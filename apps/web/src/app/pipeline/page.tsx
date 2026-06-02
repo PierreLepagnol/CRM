@@ -8,7 +8,7 @@ import { NewContactDialog } from "@/components/new-contact-dialog";
 
 export default function PipelinePage() {
   return (
-    <AppShell title="Pipeline" actions={<NewContactDialog />}>
+    <AppShell title="Pipeline" pageKey="pipeline" actions={<NewContactDialog />}>
       <div className="flex flex-col gap-4 p-4">
         <Authenticated>
           <ContactKanban />

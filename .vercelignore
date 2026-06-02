@@ -1,0 +1,24 @@
+# Build caches & outputs
+.turbo
+.next
+dist
+build
+*.tsbuildinfo
+
+# Dependencies (installed by Vercel during build)
+node_modules
+
+# VCS / Vercel metadata
+.git
+.vercel
+
+# Local tooling / agent dirs
+.agents
+.claude
+.alchemy
+.nx
+
+# Docs & non-deployed content
+Articles
+plan-n-assets
+docs

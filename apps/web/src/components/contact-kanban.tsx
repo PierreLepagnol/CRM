@@ -13,6 +13,13 @@ import { cn } from "@CRM-APP/ui/lib/utils";
 import { formatDate, formatEuros } from "@/lib/format";
 import { STAGES, type ContactStage } from "@/lib/crm";
 import { useDndKanban, KanbanBoard, KanbanColumn, SortableItem, KanbanSkeleton } from "./kanban";
+import {
+  useAppUsers,
+  userInitials,
+  UserAvatarGroup,
+  type AppUserOption,
+} from "./user-picker";
+import { Avatar, AvatarFallback, AvatarImage } from "@CRM-APP/ui/components/avatar";
 
 type ContactDoc = Doc<"contacts">;
 
@@ -60,35 +67,45 @@ export function ContactKanban() {
   const queryData = useAllStages();
   const move = useMutation(api.contacts.moveToStage);
   const router = useRouter();
-  const [filterCommercial, setFilterCommercial] = useState<string | null>(null);
+  const [filterOwner, setFilterOwner] = useState<string | null>(null);
 
-  const commerciaux = useMemo(() => {
+  const users = useAppUsers();
+  const userMap = useMemo(() => {
+    const map = new Map<string, AppUserOption>();
+    for (const u of users) map.set(u.user_id, u);
+    return map;
+  }, [users]);
+
+  // Identifiants des propriétaires présents dans le pipeline.
+  const owners = useMemo(() => {
     if (!queryData) return [];
-    const names = new Set<string>();
+    const ids = new Set<string>();
     for (const contacts of queryData.values()) {
       for (const c of contacts) {
-        if (c.contact_sciam) names.add(c.contact_sciam);
+        if (c.owner_id) ids.add(c.owner_id);
       }
     }
-    return [...names].sort();
-  }, [queryData]);
+    return [...ids].sort((a, b) =>
+      (userMap.get(a)?.name ?? a).localeCompare(userMap.get(b)?.name ?? b, "fr"),
+    );
+  }, [queryData, userMap]);
 
   const colorMap = useMemo(() => {
     const map = new Map<string, { border: string; dot: string }>();
-    commerciaux.forEach((name, i) => {
-      map.set(name, COMMERCIAL_COLORS[i % COMMERCIAL_COLORS.length]);
+    owners.forEach((id, i) => {
+      map.set(id, COMMERCIAL_COLORS[i % COMMERCIAL_COLORS.length]);
     });
     return map;
-  }, [commerciaux]);
+  }, [owners]);
 
   const filteredData = useMemo(() => {
-    if (!queryData || !filterCommercial) return queryData;
+    if (!queryData || !filterOwner) return queryData;
     const filtered = new Map<ContactStage, ContactDoc[]>();
     for (const [stage, contacts] of queryData) {
-      filtered.set(stage, contacts.filter((c) => c.contact_sciam === filterCommercial));
+      filtered.set(stage, contacts.filter((c) => c.owner_id === filterOwner));
     }
     return filtered;
-  }, [queryData, filterCommercial]);
+  }, [queryData, filterOwner]);
 
   const { byCol, sensors, activeId, allItems, onDragStart, onDragEnd } = useDndKanban({
     columns: STAGES,
@@ -103,26 +120,26 @@ export function ContactKanban() {
 
   return (
     <div>
-      {commerciaux.length > 0 && (
+      {owners.length > 0 && (
         <div className="mb-3 flex items-center gap-2">
-          <Select value={filterCommercial ?? ""} onValueChange={(v) => setFilterCommercial(v || null)}>
+          <Select value={filterOwner ?? ""} onValueChange={(v) => setFilterOwner(v || null)}>
             <SelectTrigger className="w-52">
-              <SelectValue placeholder="Tous les commerciaux" />
+              <SelectValue placeholder="Tous les propriétaires" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">Tous les commerciaux</SelectItem>
-              {commerciaux.map((name) => (
-                <SelectItem key={name} value={name}>
+              <SelectItem value="">Tous les propriétaires</SelectItem>
+              {owners.map((id) => (
+                <SelectItem key={id} value={id}>
                   <span className="flex items-center gap-2">
-                    <span className={cn("inline-block size-2.5 rounded-full", colorMap.get(name)?.dot)} />
-                    {name}
+                    <span className={cn("inline-block size-2.5 rounded-full", colorMap.get(id)?.dot)} />
+                    {userMap.get(id)?.name ?? id}
                   </span>
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
-          {filterCommercial && (
-            <Button variant="ghost" size="sm" onClick={() => setFilterCommercial(null)}>
+          {filterOwner && (
+            <Button variant="ghost" size="sm" onClick={() => setFilterOwner(null)}>
               Réinitialiser
             </Button>
           )}
@@ -132,7 +149,7 @@ export function ContactKanban() {
         sensors={sensors}
         onDragStart={onDragStart}
         onDragEnd={onDragEnd}
-        overlay={activeContact ? <ContactCard contact={activeContact as ContactDoc} colorClass={colorMap.get((activeContact as ContactDoc).contact_sciam ?? "")?.border} /> : null}
+        overlay={activeContact ? <ContactCard contact={activeContact as ContactDoc} userMap={userMap} colorClass={colorMap.get((activeContact as ContactDoc).owner_id ?? "")?.border} /> : null}
       >
         {STAGES.map((stage) => {
           const contacts = (byCol.get(stage.id) ?? []) as ContactDoc[];
@@ -151,7 +168,7 @@ export function ContactKanban() {
                   id={contact._id}
                   onSelect={() => router.push(`/contacts/${contact._id}`)}
                 >
-                  <ContactCard contact={contact as ContactDoc} colorClass={colorMap.get((contact as ContactDoc).contact_sciam ?? "")?.border} />
+                  <ContactCard contact={contact as ContactDoc} userMap={userMap} colorClass={colorMap.get((contact as ContactDoc).owner_id ?? "")?.border} />
                 </SortableItem>
               )}
             />
@@ -162,7 +179,19 @@ export function ContactKanban() {
   );
 }
 
-function ContactCard({ contact, colorClass }: { contact: ContactDoc; colorClass?: string }) {
+function ContactCard({
+  contact,
+  colorClass,
+  userMap,
+}: {
+  contact: ContactDoc;
+  colorClass?: string;
+  userMap: Map<string, AppUserOption>;
+}) {
+  const owner = contact.owner_id ? userMap.get(contact.owner_id) : undefined;
+  const responsibles = (contact.responsible_ids ?? [])
+    .map((id) => userMap.get(id))
+    .filter((u): u is AppUserOption => Boolean(u));
   const now = Date.now();
   const todayEnd = new Date();
   todayEnd.setHours(23, 59, 59, 999);
@@ -208,6 +237,22 @@ function ContactCard({ contact, colorClass }: { contact: ContactDoc; colorClass?
         <div className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
           <Mail className="size-3" />
           <span className="truncate">{contact.email}</span>
+        </div>
+      )}
+      {(owner || responsibles.length > 0) && (
+        <div className="mt-2 flex items-center justify-between gap-2">
+          {owner ? (
+            <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <Avatar size="sm">
+                {owner.image && <AvatarImage src={owner.image} alt={owner.name} />}
+                <AvatarFallback>{userInitials(owner.name)}</AvatarFallback>
+              </Avatar>
+              <span className="truncate">{owner.name}</span>
+            </span>
+          ) : (
+            <span />
+          )}
+          {responsibles.length > 0 && <UserAvatarGroup users={responsibles} />}
         </div>
       )}
     </div>
