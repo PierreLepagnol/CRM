@@ -1,11 +1,13 @@
 import { ConvexError, v } from "convex/values";
 
+import { components } from "./_generated/api";
 import { mutation, query } from "./_generated/server";
 import { authComponent } from "./auth";
 import { requireAdmin } from "./access";
 import {
   applyPageDelta,
   assertRoleChangeAllowed,
+  mergeAuthUsersWithRoles,
   sanitizeRolePages,
 } from "./lib/accessLogic";
 import {
@@ -56,25 +58,79 @@ export const ensureSelf = mutation({
   },
 });
 
-/** Change le rôle d'un utilisateur (admin uniquement, protège le dernier admin). */
-export const setRole = mutation({
-  args: { id: v.id("app_users"), role: roleKey },
+/**
+ * Liste TOUS les utilisateurs déjà connectés au CRM (table better-auth),
+ * fusionnés avec leur rôle applicatif. Les utilisateurs sans ligne `app_users`
+ * apparaissent par défaut avec le rôle `lecteur`. Admin uniquement.
+ */
+export const listAll = query({
+  args: {},
+  handler: async (ctx) => {
+    await requireAdmin(ctx);
+    const { page } = await ctx.runQuery(components.betterAuth.adapter.findMany, {
+      model: "user",
+      where: [],
+      paginationOpts: { numItems: 1000, cursor: null },
+    });
+    const appUsers = await ctx.db.query("app_users").collect();
+    return mergeAuthUsersWithRoles(
+      page as { _id: string; name?: string; email?: string; image?: string }[],
+      appUsers.map((u) => ({
+        user_id: u.user_id,
+        role: u.role as RoleKey,
+        name: u.name,
+        email: u.email,
+        image: u.image,
+      })),
+    );
+  },
+});
+
+/**
+ * Définit le rôle d'un utilisateur par son `user_id` (admin uniquement).
+ * Crée la ligne `app_users` si elle n'existe pas encore (utilisateur connecté
+ * mais non provisionné). Protège le dernier administrateur.
+ */
+export const setRoleByUserId = mutation({
+  args: { user_id: v.string(), role: roleKey },
   handler: async (ctx, args) => {
     await requireAdmin(ctx);
-    const existing = await ctx.db.get(args.id);
-    if (!existing) throw new Error("Utilisateur introuvable");
+    const existing = await ctx.db
+      .query("app_users")
+      .withIndex("by_user_id", (q) => q.eq("user_id", args.user_id))
+      .first();
     const allUsers = await ctx.db.query("app_users").collect();
     const adminCount = allUsers.filter((u) => u.role === "admin").length;
-    try {
-      assertRoleChangeAllowed({
-        currentRole: existing.role as RoleKey,
-        newRole: args.role as RoleKey,
-        adminCount,
-      });
-    } catch (e) {
-      throw new ConvexError(e instanceof Error ? e.message : "Changement refusé");
+
+    if (existing) {
+      try {
+        assertRoleChangeAllowed({
+          currentRole: existing.role as RoleKey,
+          newRole: args.role as RoleKey,
+          adminCount,
+        });
+      } catch (e) {
+        throw new ConvexError(
+          e instanceof Error ? e.message : "Changement refusé",
+        );
+      }
+      await ctx.db.patch(existing._id, { role: args.role, updated_at: Date.now() });
+      return null;
     }
-    await ctx.db.patch(args.id, { role: args.role, updated_at: Date.now() });
+
+    // Utilisateur non provisionné : on récupère ses infos better-auth.
+    const authUser = (await ctx.runQuery(components.betterAuth.adapter.findOne, {
+      model: "user",
+      where: [{ field: "_id", value: args.user_id }],
+    })) as { email?: string; name?: string; image?: string } | null;
+    await ctx.db.insert("app_users", {
+      user_id: args.user_id,
+      email: authUser?.email ?? "",
+      name: authUser?.name ?? authUser?.email ?? "",
+      image: authUser?.image ?? undefined,
+      role: args.role,
+      updated_at: Date.now(),
+    });
     return null;
   },
 });

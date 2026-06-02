@@ -8,6 +8,7 @@ import {
   canReadContacts,
   canWriteContacts,
   matchOwnerByName,
+  mergeAuthUsersWithRoles,
   resolveRole,
   sanitizeRolePages,
 } from "./accessLogic";
@@ -177,5 +178,42 @@ describe("matchOwnerByName", () => {
       { user_id: "b", name: "Jean" },
     ];
     expect(matchOwnerByName("Jean", dupes)).toBeUndefined();
+  });
+});
+
+describe("mergeAuthUsersWithRoles", () => {
+  const authUsers = [
+    { _id: "u1", name: "Alice", email: "alice@x.fr", image: "a.png" },
+    { _id: "u2", name: "Bob", email: "bob@x.fr" },
+  ];
+  const appUsers = [
+    { user_id: "u1", role: "admin" as const, name: "Alice", email: "alice@x.fr" },
+  ];
+
+  it("lists every logged-in user, with their role from app_users", () => {
+    const merged = mergeAuthUsersWithRoles(authUsers, appUsers);
+    expect(merged.map((m) => m.user_id).sort()).toEqual(["u1", "u2"]);
+    expect(merged.find((m) => m.user_id === "u1")?.role).toBe("admin");
+  });
+
+  it("defaults a not-yet-provisioned user to 'lecteur'", () => {
+    const merged = mergeAuthUsersWithRoles(authUsers, appUsers);
+    const bob = merged.find((m) => m.user_id === "u2");
+    expect(bob?.role).toBe("lecteur");
+    expect(bob?.provisioned).toBe(false);
+  });
+
+  it("marks provisioned users", () => {
+    const merged = mergeAuthUsersWithRoles(authUsers, appUsers);
+    expect(merged.find((m) => m.user_id === "u1")?.provisioned).toBe(true);
+  });
+
+  it("falls back to the auth name/email when no app_users row exists", () => {
+    const merged = mergeAuthUsersWithRoles(
+      [{ _id: "u3", email: "carol@x.fr" }],
+      [],
+    );
+    expect(merged[0].name).toBe("carol@x.fr");
+    expect(merged[0].email).toBe("carol@x.fr");
   });
 });

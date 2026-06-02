@@ -53,3 +53,5 @@ temp
 # Convex agent skills
 packages/backend/.agents/
 packages/backend/.claude/skills/
+
+.vercel

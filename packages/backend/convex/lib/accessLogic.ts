@@ -110,3 +110,50 @@ export function matchOwnerByName(
   const matches = users.filter((u) => u.name.trim().toLowerCase() === needle);
   return matches.length === 1 ? matches[0].user_id : undefined;
 }
+
+type AuthUserLike = {
+  _id: string;
+  name?: string | null;
+  email?: string | null;
+  image?: string | null;
+};
+type AppUserLike = {
+  user_id: string;
+  role: RoleKey;
+  name?: string | null;
+  email?: string | null;
+  image?: string | null;
+};
+export type MergedUser = {
+  user_id: string;
+  name: string;
+  email: string;
+  image?: string;
+  role: RoleKey;
+  provisioned: boolean;
+};
+
+/**
+ * Fusionne tous les utilisateurs connectés (table better-auth) avec leur rôle
+ * applicatif. Les utilisateurs sans ligne `app_users` ont par défaut le rôle
+ * le moins privilégié (`lecteur`) et `provisioned: false`.
+ */
+export function mergeAuthUsersWithRoles(
+  authUsers: AuthUserLike[],
+  appUsers: AppUserLike[],
+): MergedUser[] {
+  const byId = new Map(appUsers.map((a) => [a.user_id, a]));
+  return authUsers
+    .map((u) => {
+      const app = byId.get(u._id);
+      return {
+        user_id: u._id,
+        name: app?.name ?? u.name ?? u.email ?? "",
+        email: app?.email ?? u.email ?? "",
+        image: app?.image ?? u.image ?? undefined,
+        role: resolveRole(app?.role),
+        provisioned: Boolean(app),
+      };
+    })
+    .sort((a, b) => a.name.localeCompare(b.name, "fr"));
+}

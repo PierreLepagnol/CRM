@@ -1,7 +1,6 @@
 "use client";
 
 import { api } from "@CRM-APP/backend/convex/_generated/api";
-import type { Id } from "@CRM-APP/backend/convex/_generated/dataModel";
 import {
   Avatar,
   AvatarFallback,
@@ -64,15 +63,16 @@ export default function AdminPage() {
 }
 
 function UsersSection() {
-  const users = useQuery(api.users.list, {});
-  const setRole = useMutation(api.users.setRole);
+  const users = useQuery(api.users.listAll, {});
+  const setRole = useMutation(api.users.setRoleByUserId);
 
   return (
     <section className="rounded-lg border bg-card">
       <div className="border-b px-4 py-3">
         <h2 className="text-sm font-semibold">Utilisateurs &amp; rôles</h2>
         <p className="text-xs text-muted-foreground">
-          Attribuez un rôle à chaque utilisateur connecté via Microsoft.
+          Tous les utilisateurs déjà connectés via Microsoft. Par défaut, ils ont
+          le rôle « Lecteur ».
         </p>
       </div>
       {users === undefined ? (
@@ -83,7 +83,7 @@ function UsersSection() {
         </div>
       ) : users.length === 0 ? (
         <p className="p-6 text-sm text-muted-foreground">
-          Aucun utilisateur enregistré pour l'instant.
+          Aucun utilisateur connecté pour l'instant.
         </p>
       ) : (
         <Table>
@@ -96,7 +96,7 @@ function UsersSection() {
           </TableHeader>
           <TableBody>
             {users.map((u) => (
-              <TableRow key={u._id}>
+              <TableRow key={u.user_id}>
                 <TableCell>
                   <span className="flex items-center gap-2">
                     <Avatar size="sm">
@@ -113,7 +113,7 @@ function UsersSection() {
                     onValueChange={async (v) => {
                       try {
                         await setRole({
-                          id: u._id as Id<"app_users">,
+                          user_id: u.user_id,
                           role: v as RoleKey,
                         });
                         toast.success("Rôle mis à jour.");
