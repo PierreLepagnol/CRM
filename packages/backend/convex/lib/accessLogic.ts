@@ -97,18 +97,71 @@ export function sanitizeRolePages(role: RoleKey, pages: PageKey[]): PageKey[] {
 }
 
 /**
+ * Normalise un nom pour comparaison floue : minuscules, sans accents, espaces
+ * collapsés. "  Cédric  Munsch " → "cedric munsch".
+ */
+function normalizeName(s: string): string {
+  return s
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "") // diacritiques
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, " ");
+}
+
+/** Renvoie l'unique `user_id` de la liste, ou `undefined` si 0 ou plusieurs. */
+function singleUserId(
+  matches: { user_id: string }[],
+): string | undefined {
+  const ids = [...new Set(matches.map((m) => m.user_id))];
+  return ids.length === 1 ? ids[0] : undefined;
+}
+
+/**
  * Tente de retrouver l'utilisateur correspondant à un ancien `contact_sciam`
- * (texte libre) par correspondance exacte de nom (insensible à la casse).
- * Renvoie `undefined` si aucune ou plusieurs correspondances (pas de devinette).
+ * (texte libre) par rapprochement flou avec `app_users.name`, insensible à la
+ * casse et aux accents. Stratégie par paliers, du plus sûr au plus permissif —
+ * on s'arrête au premier palier qui désigne UN SEUL utilisateur :
+ *   1. nom complet identique ("bruno martin" === "bruno martin")
+ *   2. tous les mots saisis sont des mots du nom ("maurin" → "Maurin Voldoire")
+ *   3. un mot saisi est le préfixe d'un mot du nom ("pier" → "Pierre Durand")
+ * Renvoie `undefined` si aucune ou plusieurs correspondances (jamais de
+ * devinette : on préfère laisser le contact sans propriétaire).
  */
 export function matchOwnerByName(
   name: string | undefined | null,
   users: { user_id: string; name: string }[],
 ): string | undefined {
-  const needle = (name ?? "").trim().toLowerCase();
+  const needle = normalizeName(name ?? "");
   if (!needle) return undefined;
-  const matches = users.filter((u) => u.name.trim().toLowerCase() === needle);
-  return matches.length === 1 ? matches[0].user_id : undefined;
+  const needleTokens = needle.split(" ").filter(Boolean);
+
+  const candidates = users.map((u) => {
+    const norm = normalizeName(u.name);
+    return { user_id: u.user_id, norm, tokens: norm.split(" ").filter(Boolean) };
+  });
+
+  // Palier 1 : nom complet identique.
+  const exact = singleUserId(candidates.filter((c) => c.norm === needle));
+  if (exact) return exact;
+
+  // Palier 2 : chaque mot saisi est présent tel quel dans le nom de l'utilisateur.
+  const tokenSubset = singleUserId(
+    candidates.filter((c) => needleTokens.every((t) => c.tokens.includes(t))),
+  );
+  if (tokenSubset) return tokenSubset;
+
+  // Palier 3 : un mot saisi (≥ 3 lettres) est le préfixe d'un mot du nom.
+  const prefix = singleUserId(
+    candidates.filter((c) =>
+      needleTokens.some(
+        (t) => t.length >= 3 && c.tokens.some((ct) => ct.startsWith(t)),
+      ),
+    ),
+  );
+  if (prefix) return prefix;
+
+  return undefined;
 }
 
 type AuthUserLike = {

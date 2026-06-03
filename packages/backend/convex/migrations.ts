@@ -132,8 +132,9 @@ export const importDevData = internalMutation({
   },
 });
 
-// One-shot backfill: map legacy free-text contact_sciam to owner_id by matching
-// the SSO display name in app_users. Run once after deploy:
+// One-shot backfill: map legacy free-text contact_sciam to owner_id by fuzzily
+// matching the SSO display name in app_users (accent/case-insensitive, with a
+// first-name/prefix fallback — see matchOwnerByName). Run once after deploy:
 //   npx convex run migrations:backfillContactOwners
 // Contacts without a single confident name match are left untouched.
 export const backfillContactOwners = internalMutation({
