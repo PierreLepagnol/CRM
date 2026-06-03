@@ -6,6 +6,8 @@ import {
   OwnerSelect,
   ResponsiblesMultiSelect,
   resolveOwnerLabel,
+  resolveUser,
+  resolveUserName,
   type AppUserOption,
 } from "./user-picker";
 
@@ -27,6 +29,31 @@ describe("resolveOwnerLabel", () => {
     expect(resolveOwnerLabel("k17fbwa04m8xpwjvfc8ncx3g5h85v2b2", users)).toBe(
       "Utilisateur inconnu",
     );
+  });
+});
+
+describe("resolveUser", () => {
+  it("returns the full user option (with image) for a known id", () => {
+    const withImg: AppUserOption[] = [
+      { user_id: "u1", name: "Alice Martin", email: "a@x.fr", image: "alice.png" },
+    ];
+    expect(resolveUser("u1", withImg)).toEqual(withImg[0]);
+  });
+
+  it("returns undefined for an unknown or missing id", () => {
+    expect(resolveUser("nope", users)).toBeUndefined();
+    expect(resolveUser(undefined, users)).toBeUndefined();
+  });
+});
+
+describe("resolveUserName", () => {
+  it("returns the user's name for a known id", () => {
+    expect(resolveUserName("u1", users)).toBe("Alice Martin");
+  });
+
+  it("returns undefined for an unknown id, so the UI can omit it", () => {
+    expect(resolveUserName("nope", users)).toBeUndefined();
+    expect(resolveUserName(undefined, users)).toBeUndefined();
   });
 });
 
