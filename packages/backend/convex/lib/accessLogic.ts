@@ -164,6 +164,24 @@ export function matchOwnerByName(
   return undefined;
 }
 
+/**
+ * Choisit le propriétaire à affecter à un contact qui n'en a pas, lors du
+ * rattrapage one-shot : on tente d'abord la correspondance par l'ancien
+ * `contact_sciam` (texte libre), puis on retombe sur un utilisateur par défaut
+ * pour ne laisser aucun contact orphelin.
+ */
+export function pickBackfillOwner({
+  contactSciam,
+  users,
+  defaultUserId,
+}: {
+  contactSciam: string | undefined | null;
+  users: { user_id: string; name: string }[];
+  defaultUserId: string;
+}): string {
+  return matchOwnerByName(contactSciam, users) ?? defaultUserId;
+}
+
 type AuthUserLike = {
   _id: string;
   name?: string | null;

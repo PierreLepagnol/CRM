@@ -21,12 +21,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@CRM-APP/ui/components/select";
-import { useMutation } from "convex/react";
+import { useMutation, useQuery } from "convex/react";
 import { Plus } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
-import { STAGES, type ContactStage } from "@/lib/crm";
+import { STAGES, STAGE_ITEMS, type ContactStage } from "@/lib/crm";
 import {
   OwnerSelect,
   ResponsiblesMultiSelect,
@@ -49,6 +49,8 @@ export function NewContactDialog({ defaultStage }: { defaultStage?: ContactStage
 
   const create = useMutation(api.contacts.create);
   const users = useAppUsers();
+  const currentUser = useQuery(api.auth.getCurrentUser);
+  const currentUserId = currentUser?._id as string | undefined;
 
   const reset = () => {
     setPrenom("");
@@ -57,7 +59,8 @@ export function NewContactDialog({ defaultStage }: { defaultStage?: ContactStage
     setEmail("");
     setTelephone("");
     setPoste("");
-    setOwnerId(undefined);
+    // Par défaut, le créateur est propriétaire (modifiable). Cf. CONTEXT.md.
+    setOwnerId(currentUserId);
     setResponsibleIds([]);
     setMontant("0");
     setStage(defaultStage ?? "nouveau");
@@ -91,7 +94,14 @@ export function NewContactDialog({ defaultStage }: { defaultStage?: ContactStage
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog
+      open={open}
+      onOpenChange={(o) => {
+        setOpen(o);
+        // À l'ouverture, pré-sélectionner le créateur comme propriétaire.
+        if (o) setOwnerId((prev) => prev ?? currentUserId);
+      }}
+    >
       <DialogTrigger
         render={
           <Button size="sm">
@@ -194,7 +204,7 @@ export function NewContactDialog({ defaultStage }: { defaultStage?: ContactStage
               </div>
               <div className="col-span-2 flex flex-col gap-1.5">
                 <Label htmlFor="nc-stage">Stage</Label>
-                <Select value={stage} onValueChange={(v) => setStage(v as ContactStage)}>
+                <Select items={STAGE_ITEMS} value={stage} onValueChange={(v) => setStage(v as ContactStage)}>
                   <SelectTrigger id="nc-stage" className="h-11 text-base">
                     <SelectValue />
                   </SelectTrigger>

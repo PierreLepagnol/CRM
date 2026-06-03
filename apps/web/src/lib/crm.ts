@@ -15,6 +15,11 @@ export const STAGES = [
   { id: "perdu" as ContactStage, label: "Perdu", badgeClass: "bg-rose-100 text-rose-700" },
 ] as const;
 
+// base-ui `Select` ne résout un libellé que via la prop `items` du Root ; sans
+// elle, le trigger fermé affiche la valeur brute ("nouveau" au lieu de
+// "Prospect"). On fournit donc la table value→label aux sélecteurs de stage.
+export const STAGE_ITEMS = STAGES.map((s) => ({ value: s.id, label: s.label }));
+
 export const STATUTS = [
   { id: "a_demarrer" as ProjectStatut, label: "À démarrer", badgeClass: "bg-slate-100 text-slate-700" },
   { id: "en_cours" as ProjectStatut, label: "En cours", badgeClass: "bg-sky-100 text-sky-700" },

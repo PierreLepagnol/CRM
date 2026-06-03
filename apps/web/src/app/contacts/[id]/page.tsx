@@ -32,6 +32,7 @@ import {
 } from "@/components/user-picker";
 import {
   STAGES,
+  STAGE_ITEMS,
   INTERACTION_TYPES,
   type ContactStage,
   type InteractionType,
@@ -229,7 +230,7 @@ function ContactDetail({ id }: { id: Id<"contacts"> }) {
       <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
         <section className="rounded-lg border bg-card p-4">
           <Label htmlFor="cd-stage" className="mb-3 block text-sm font-medium">Stage pipeline</Label>
-          <Select value={stage} onValueChange={(v) => { setStage(v as ContactStage); persist({ stage: v as ContactStage }); }}>
+          <Select items={STAGE_ITEMS} value={stage} onValueChange={(v) => { setStage(v as ContactStage); persist({ stage: v as ContactStage }); }}>
             <SelectTrigger id="cd-stage" className="w-full">
               <SelectValue />
             </SelectTrigger>
