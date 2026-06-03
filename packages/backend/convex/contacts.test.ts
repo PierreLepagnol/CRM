@@ -5,8 +5,11 @@ import { describe, expect, it } from "vitest";
 import schema from "./schema";
 
 // convex-test découvre les modules (et le composant better-auth déclaré dans
-// convex.config.ts) via ce glob.
-const modules = import.meta.glob("./**/*.*s");
+// convex.config.ts) via ce glob. `import.meta.glob` est fourni par Vite/vitest
+// mais inconnu du typecheck Convex (tsc), d'où le cast.
+const modules = (import.meta as unknown as { glob: (p: string) => Record<string, () => Promise<unknown>> }).glob(
+  "./**/*.*s",
+);
 
 /**
  * Régression : la recherche de contacts doit indexer le PRÉNOM, pas seulement
