@@ -56,6 +56,20 @@ export function useAppUsers(): AppUserOption[] {
 
 const NONE = "__none__";
 
+/**
+ * Résout l'`owner_id` stocké vers un libellé humain pour l'affichage.
+ * base-ui n'expose pas la liste des items au `Select.Value` fermé : sans
+ * résolution explicite, il sérialise la valeur brute (l'ID interne). On mappe
+ * donc nous-mêmes l'ID vers le nom de l'utilisateur.
+ */
+export function resolveOwnerLabel(
+  value: string | undefined,
+  users: AppUserOption[],
+): string {
+  if (!value || value === NONE) return "Aucun propriétaire";
+  return users.find((u) => u.user_id === value)?.name ?? "Utilisateur inconnu";
+}
+
 /** Sélecteur de propriétaire (un seul utilisateur). */
 export function OwnerSelect({
   value,
@@ -72,7 +86,7 @@ export function OwnerSelect({
       onValueChange={(v) => onChange(v && v !== NONE ? (v as string) : undefined)}
     >
       <SelectTrigger className="w-full">
-        <SelectValue placeholder="Aucun propriétaire" />
+        <SelectValue>{(v) => resolveOwnerLabel(v as string | undefined, users)}</SelectValue>
       </SelectTrigger>
       <SelectContent>
         <SelectItem value={NONE}>Aucun propriétaire</SelectItem>

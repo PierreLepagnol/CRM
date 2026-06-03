@@ -9,6 +9,7 @@ import {
   canWriteContacts,
   matchOwnerByName,
   mergeAuthUsersWithRoles,
+  pickBackfillOwner,
   resolveRole,
   sanitizeRolePages,
 } from "./accessLogic";
@@ -217,6 +218,39 @@ describe("matchOwnerByName", () => {
     ];
     // "B" (< 3 chars) must not match anyone.
     expect(matchOwnerByName("B", full)).toBeUndefined();
+  });
+});
+
+describe("pickBackfillOwner", () => {
+  const users = [
+    { user_id: "u1", name: "Maurin Voldoire" },
+    { user_id: "u2", name: "Sophie Durand" },
+  ];
+
+  it("prefers the user matched by the legacy contact_sciam name", () => {
+    expect(
+      pickBackfillOwner({
+        contactSciam: "Maurin",
+        users,
+        defaultUserId: "default",
+      }),
+    ).toBe("u1");
+  });
+
+  it("falls back to the default user when the name matches nobody", () => {
+    expect(
+      pickBackfillOwner({
+        contactSciam: "Inconnu Total",
+        users,
+        defaultUserId: "default",
+      }),
+    ).toBe("default");
+  });
+
+  it("falls back to the default user when there is no legacy name at all", () => {
+    expect(
+      pickBackfillOwner({ contactSciam: undefined, users, defaultUserId: "default" }),
+    ).toBe("default");
   });
 });
 

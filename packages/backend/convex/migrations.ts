@@ -2,7 +2,11 @@ import { internalAction, internalMutation } from "./_generated/server";
 import { components } from "./_generated/api";
 import { v } from "convex/values";
 import type { Id } from "./_generated/dataModel";
-import { matchOwnerByName } from "./lib/accessLogic";
+import { pickBackfillOwner } from "./lib/accessLogic";
+
+// Utilisateur par défaut pour les contacts orphelins que le rapprochement par
+// nom ne résout pas (décision : nettoyage ponctuel, voir CONTEXT.md).
+const DEFAULT_OWNER_EMAIL = "pierre.lepagnol@sciam.fr";
 
 // Run once from the Convex dashboard to purge all credential (email/password)
 // accounts and orphaned users that have no Microsoft SSO account.
@@ -132,34 +136,44 @@ export const importDevData = internalMutation({
   },
 });
 
-// One-shot backfill: map legacy free-text contact_sciam to owner_id by fuzzily
-// matching the SSO display name in app_users (accent/case-insensitive, with a
-// first-name/prefix fallback — see matchOwnerByName). Run once after deploy:
+// One-shot backfill: give every owner-less contact a propriétaire. First try to
+// map the legacy free-text contact_sciam to a known SSO user (accent/case-
+// insensitive, first-name/prefix fallback — see matchOwnerByName); any contact
+// still unresolved is assigned to the default owner (DEFAULT_OWNER_EMAIL) so no
+// contact is left orphaned. Contacts that already have an owner are untouched.
+// Run once after deploy:
 //   npx convex run migrations:backfillContactOwners
-// Contacts without a single confident name match are left untouched.
 export const backfillContactOwners = internalMutation({
   args: {},
   handler: async (ctx) => {
-    const users = (await ctx.db.query("app_users").collect()).map((u) => ({
-      user_id: u.user_id,
-      name: u.name,
-    }));
+    const appUsers = await ctx.db.query("app_users").collect();
+    const users = appUsers.map((u) => ({ user_id: u.user_id, name: u.name }));
+
+    const defaultOwner = appUsers.find(
+      (u) => u.email.toLowerCase() === DEFAULT_OWNER_EMAIL,
+    );
+    if (!defaultOwner) {
+      throw new Error(
+        `Utilisateur par défaut introuvable (${DEFAULT_OWNER_EMAIL}). Aucun rattrapage effectué.`,
+      );
+    }
 
     const contacts = await ctx.db.query("contacts").collect();
     let matched = 0;
-    let skipped = 0;
+    let defaulted = 0;
 
     for (const c of contacts) {
       if (c.deleted_at !== undefined || c.owner_id) continue;
-      const ownerId = matchOwnerByName(c.contact_sciam, users);
-      if (ownerId) {
-        await ctx.db.patch(c._id, { owner_id: ownerId, updated_at: Date.now() });
-        matched++;
-      } else if (c.contact_sciam) {
-        skipped++;
-      }
+      const ownerId = pickBackfillOwner({
+        contactSciam: c.contact_sciam,
+        users,
+        defaultUserId: defaultOwner.user_id,
+      });
+      await ctx.db.patch(c._id, { owner_id: ownerId, updated_at: Date.now() });
+      if (ownerId === defaultOwner.user_id) defaulted++;
+      else matched++;
     }
 
-    return { matched, skipped };
+    return { matched, defaulted };
   },
 });
