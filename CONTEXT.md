@@ -31,6 +31,19 @@ Utilisateur(s) SCIAM **additionnels** associés à un contact, en plus du
 Propriétaire. Plusieurs possibles. Rôle d'accompagnement, pas de responsabilité
 principale.
 
+## Interaction
+
+Un échange consigné sur la timeline d'un contact (« Historique des échanges ») :
+`email`, `appel`, `rdv`, `linkedin`, `relance`. Porte une **date**, un **résumé**
+et un **auteur** (le Créateur de l'interaction, distinct du Propriétaire du
+contact).
+
+## Relance
+
+**Un type d'Interaction**, pas une entité distincte : un rappel de suivi à une
+date donnée. Créée soit manuellement, soit automatiquement quand on renseigne une
+date de relance sur un contact. Son auteur est l'utilisateur qui l'a saisie.
+
 ## Contact SCIAM (hérité)
 
 Ancien champ **texte libre** (ex. « Maurin », « Bruno ») désignant informellement

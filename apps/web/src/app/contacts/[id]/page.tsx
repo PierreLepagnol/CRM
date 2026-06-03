@@ -2,6 +2,11 @@
 
 import { api } from "@CRM-APP/backend/convex/_generated/api";
 import type { Id } from "@CRM-APP/backend/convex/_generated/dataModel";
+import {
+  Avatar,
+  AvatarFallback,
+  AvatarImage,
+} from "@CRM-APP/ui/components/avatar";
 import { Button } from "@CRM-APP/ui/components/button";
 import { Input } from "@CRM-APP/ui/components/input";
 import { Label } from "@CRM-APP/ui/components/label";
@@ -28,7 +33,9 @@ import { AppShell } from "@/components/app-shell";
 import {
   OwnerSelect,
   ResponsiblesMultiSelect,
+  resolveUser,
   useAppUsers,
+  userInitials,
 } from "@/components/user-picker";
 import {
   STAGES,
@@ -428,13 +435,26 @@ function ContactDetail({ id }: { id: Id<"contacts"> }) {
           <ul className="flex flex-col divide-y rounded-lg border">
             {interactions.map((inter) => {
               const TypeIcon = interactionIcon(inter.type);
+              const author = resolveUser(inter.created_by, users);
               return (
                 <li key={inter._id} className="flex items-start gap-3 px-4 py-3">
                   <TypeIcon className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center justify-between gap-2">
-                      <span className="text-xs font-medium text-muted-foreground">
+                      <span className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
                         {interactionLabel(inter.type)} · {formatDate(inter.date_at)}
+                        {author && (
+                          <span className="flex items-center gap-1.5">
+                            <span>·</span>
+                            <Avatar size="sm" className="size-5">
+                              {author.image && (
+                                <AvatarImage src={author.image} alt={author.name} />
+                              )}
+                              <AvatarFallback>{userInitials(author.name)}</AvatarFallback>
+                            </Avatar>
+                            {author.name}
+                          </span>
+                        )}
                       </span>
                       <Button
                         variant="ghost"

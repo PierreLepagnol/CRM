@@ -56,6 +56,22 @@ export function useAppUsers(): AppUserOption[] {
 
 const NONE = "__none__";
 
+/** Utilisateur complet (avec image) depuis son id, ou `undefined` si inconnu. */
+export function resolveUser(
+  userId: string | undefined,
+  users: AppUserOption[],
+): AppUserOption | undefined {
+  return users.find((u) => u.user_id === userId);
+}
+
+/** Nom d'un utilisateur depuis son id, ou `undefined` si inconnu. */
+export function resolveUserName(
+  userId: string | undefined,
+  users: AppUserOption[],
+): string | undefined {
+  return resolveUser(userId, users)?.name;
+}
+
 /**
  * Résout l'`owner_id` stocké vers un libellé humain pour l'affichage.
  * base-ui n'expose pas la liste des items au `Select.Value` fermé : sans
@@ -67,7 +83,7 @@ export function resolveOwnerLabel(
   users: AppUserOption[],
 ): string {
   if (!value || value === NONE) return "Aucun propriétaire";
-  return users.find((u) => u.user_id === value)?.name ?? "Utilisateur inconnu";
+  return resolveUserName(value, users) ?? "Utilisateur inconnu";
 }
 
 /** Sélecteur de propriétaire (un seul utilisateur). */
