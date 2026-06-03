@@ -179,6 +179,45 @@ describe("matchOwnerByName", () => {
     ];
     expect(matchOwnerByName("Jean", dupes)).toBeUndefined();
   });
+
+  it("matches accent-insensitively", () => {
+    const accented = [{ user_id: "u3", name: "Cédric Munsch" }];
+    expect(matchOwnerByName("cedric munsch", accented)).toBe("u3");
+  });
+
+  it("matches a single first name against a full SSO name (legacy contact_sciam)", () => {
+    // contact_sciam holds "Maurin", app_users holds the full display name.
+    const full = [
+      { user_id: "u1", name: "Maurin Voldoire" },
+      { user_id: "u2", name: "Sophie Durand" },
+    ];
+    expect(matchOwnerByName("Maurin", full)).toBe("u1");
+  });
+
+  it("still refuses a first name shared by two users", () => {
+    const full = [
+      { user_id: "u1", name: "Maurin Voldoire" },
+      { user_id: "u2", name: "Maurin Petit" },
+    ];
+    expect(matchOwnerByName("Maurin", full)).toBeUndefined();
+  });
+
+  it("falls back to a prefix match when no exact/token match exists", () => {
+    const full = [
+      { user_id: "u1", name: "Pierre Lepagnol" },
+      { user_id: "u2", name: "Sophie Durand" },
+    ];
+    expect(matchOwnerByName("Pier", full)).toBe("u1");
+  });
+
+  it("ignores too-short prefixes to avoid over-matching", () => {
+    const full = [
+      { user_id: "u1", name: "Bruno Martin" },
+      { user_id: "u2", name: "Bernard Petit" },
+    ];
+    // "B" (< 3 chars) must not match anyone.
+    expect(matchOwnerByName("B", full)).toBeUndefined();
+  });
 });
 
 describe("mergeAuthUsersWithRoles", () => {
