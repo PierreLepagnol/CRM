@@ -63,11 +63,17 @@ export const search = query({
       .query("contacts")
       .withSearchIndex("search_nom", (q) => q.search("nom", args.q))
       .take(10);
+    const byPrenom = await ctx.db
+      .query("contacts")
+      .withSearchIndex("search_prenom", (q) => q.search("prenom", args.q))
+      .take(10);
     const byEntreprise = await ctx.db
       .query("contacts")
       .withSearchIndex("search_entreprise", (q) => q.search("entreprise", args.q))
       .take(10);
-    const combined = [...byNom, ...byEntreprise].filter((c) => c.deleted_at === undefined);
+    const combined = [...byNom, ...byPrenom, ...byEntreprise].filter(
+      (c) => c.deleted_at === undefined,
+    );
     return combined.filter((c, i, arr) => arr.findIndex((x) => x._id === c._id) === i).slice(0, 15);
   },
 });

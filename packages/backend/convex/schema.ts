@@ -56,6 +56,7 @@ export default defineSchema({
     .index("by_updated_at", ["updated_at"])
     .index("by_next_relance_at", ["next_relance_at"])
     .searchIndex("search_nom", { searchField: "nom", filterFields: ["stage"] })
+    .searchIndex("search_prenom", { searchField: "prenom" })
     .searchIndex("search_entreprise", { searchField: "entreprise" }),
 
   interactions: defineTable({
