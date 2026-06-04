@@ -60,6 +60,7 @@ export default defineSchema({
     montant: v.optional(v.number()),
     email: v.optional(v.string()),
     telephone: v.optional(v.string()),
+    linkedin_url: v.optional(v.string()), // coordonnée: URL du profil LinkedIn (cf. CONTEXT.md)
     poste: v.optional(v.string()),
     contact_sciam: v.optional(v.string()), // legacy: texte libre, remplacé par owner_id
     owner_id: v.optional(userIdString), // propriétaire (app_users.user_id)

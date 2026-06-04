@@ -41,6 +41,7 @@ export function NewContactDialog({ defaultStage }: { defaultStage?: ContactStage
   const [entreprise, setEntreprise] = useState<EntrepriseValue>({ nom: "" });
   const [email, setEmail] = useState("");
   const [telephone, setTelephone] = useState("");
+  const [linkedinUrl, setLinkedinUrl] = useState("");
   const [poste, setPoste] = useState("");
   const [ownerId, setOwnerId] = useState<string | undefined>(undefined);
   const [responsibleIds, setResponsibleIds] = useState<string[]>([]);
@@ -60,6 +61,7 @@ export function NewContactDialog({ defaultStage }: { defaultStage?: ContactStage
     setEntreprise({ nom: "" });
     setEmail("");
     setTelephone("");
+    setLinkedinUrl("");
     setPoste("");
     // Par défaut, le créateur est propriétaire (modifiable). Cf. CONTEXT.md.
     setOwnerId(currentUserId);
@@ -87,6 +89,7 @@ export function NewContactDialog({ defaultStage }: { defaultStage?: ContactStage
         entreprise_id: entrepriseId,
         email: email.trim() || undefined,
         telephone: telephone.trim() || undefined,
+        linkedin_url: linkedinUrl.trim() || undefined,
         poste: poste.trim() || undefined,
         owner_id: ownerId,
         responsible_ids: responsibleIds.length > 0 ? responsibleIds : undefined,
@@ -184,6 +187,17 @@ export function NewContactDialog({ defaultStage }: { defaultStage?: ContactStage
                   id="nc-poste"
                   value={poste}
                   onChange={(e) => setPoste(e.target.value)}
+                  className="h-11 text-base"
+                />
+              </div>
+              <div className="col-span-2 flex flex-col gap-1.5">
+                <Label htmlFor="nc-linkedin">Profil LinkedIn</Label>
+                <Input
+                  id="nc-linkedin"
+                  type="url"
+                  placeholder="https://www.linkedin.com/in/…"
+                  value={linkedinUrl}
+                  onChange={(e) => setLinkedinUrl(e.target.value)}
                   className="h-11 text-base"
                 />
               </div>

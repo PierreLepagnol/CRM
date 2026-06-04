@@ -23,7 +23,7 @@ import { Skeleton } from "@CRM-APP/ui/components/skeleton";
 import { Textarea } from "@CRM-APP/ui/components/textarea";
 import { cn } from "@CRM-APP/ui/lib/utils";
 import { Authenticated, useMutation, useQuery } from "convex/react";
-import { ArrowLeft, Bell, BellOff, Euro, Mail, Phone, Plus, Trash2, X } from "lucide-react";
+import { ArrowLeft, Bell, BellOff, Euro, ExternalLink, Mail, Phone, Plus, Trash2, X } from "lucide-react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
@@ -80,6 +80,7 @@ function ContactDetail({ id }: { id: Id<"contacts"> }) {
   const [entreprise, setEntreprise] = useState<EntrepriseValue>({ nom: "" });
   const [email, setEmail] = useState("");
   const [telephone, setTelephone] = useState("");
+  const [linkedinUrl, setLinkedinUrl] = useState("");
   const [poste, setPoste] = useState("");
   const [ownerId, setOwnerId] = useState<string | undefined>(undefined);
   const [responsibleIds, setResponsibleIds] = useState<string[]>([]);
@@ -105,6 +106,7 @@ function ContactDetail({ id }: { id: Id<"contacts"> }) {
     });
     setEmail(contact.email ?? "");
     setTelephone(contact.telephone ?? "");
+    setLinkedinUrl(contact.linkedin_url ?? "");
     setPoste(contact.poste ?? "");
     setOwnerId(contact.owner_id ?? undefined);
     setResponsibleIds(contact.responsible_ids ?? []);
@@ -256,6 +258,16 @@ function ContactDetail({ id }: { id: Id<"contacts"> }) {
             <Phone className="size-3.5" /> {contact.telephone}
           </a>
         )}
+        {contact.linkedin_url && (
+          <a
+            href={contact.linkedin_url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm transition-colors hover:bg-muted/50"
+          >
+            <ExternalLink className="size-3.5" /> Profil LinkedIn
+          </a>
+        )}
         <span className="inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm">
           <Euro className="size-3.5" /> {formatEuros(contact.montant ?? 0)}
         </span>
@@ -351,6 +363,10 @@ function ContactDetail({ id }: { id: Id<"contacts"> }) {
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="cd-tel">Téléphone</Label>
             <Input id="cd-tel" value={telephone} onChange={(e) => setTelephone(e.target.value)} onBlur={() => persist({ telephone: telephone.trim() || undefined })} />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="cd-linkedin">Profil LinkedIn</Label>
+            <Input id="cd-linkedin" type="url" placeholder="https://www.linkedin.com/in/…" value={linkedinUrl} onChange={(e) => setLinkedinUrl(e.target.value)} onBlur={() => persist({ linkedin_url: linkedinUrl.trim() || undefined })} />
           </div>
           <div className="flex flex-col gap-1.5">
             <Label>Propriétaire</Label>
