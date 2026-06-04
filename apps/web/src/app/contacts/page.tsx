@@ -7,7 +7,7 @@ import { Input } from "@CRM-APP/ui/components/input";
 import { Skeleton } from "@CRM-APP/ui/components/skeleton";
 import { cn } from "@CRM-APP/ui/lib/utils";
 import { Authenticated, useQuery } from "convex/react";
-import { Download, Search } from "lucide-react";
+import { Download, Search, Upload } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 
@@ -64,6 +64,10 @@ function ContactsList() {
             onChange={(e) => setQ(e.target.value)}
           />
         </div>
+        <Button variant="outline" size="sm" render={<Link href="/contacts/import" />}>
+          <Upload className="size-4" />
+          Importer
+        </Button>
         <Button
           variant="outline"
           size="sm"

@@ -10,6 +10,7 @@
 
 import type * as access from "../access.js";
 import type * as auth from "../auth.js";
+import type * as contactImport from "../contactImport.js";
 import type * as contacts from "../contacts.js";
 import type * as entreprises from "../entreprises.js";
 import type * as healthCheck from "../healthCheck.js";
@@ -19,6 +20,7 @@ import type * as lib_accessLogic from "../lib/accessLogic.js";
 import type * as lib_auth from "../lib/auth.js";
 import type * as lib_contactPatch from "../lib/contactPatch.js";
 import type * as lib_entrepriseLogic from "../lib/entrepriseLogic.js";
+import type * as lib_importLogic from "../lib/importLogic.js";
 import type * as lib_validators from "../lib/validators.js";
 import type * as migrations from "../migrations.js";
 import type * as projects from "../projects.js";
@@ -34,6 +36,7 @@ import type {
 declare const fullApi: ApiFromModules<{
   access: typeof access;
   auth: typeof auth;
+  contactImport: typeof contactImport;
   contacts: typeof contacts;
   entreprises: typeof entreprises;
   healthCheck: typeof healthCheck;
@@ -43,6 +46,7 @@ declare const fullApi: ApiFromModules<{
   "lib/auth": typeof lib_auth;
   "lib/contactPatch": typeof lib_contactPatch;
   "lib/entrepriseLogic": typeof lib_entrepriseLogic;
+  "lib/importLogic": typeof lib_importLogic;
   "lib/validators": typeof lib_validators;
   migrations: typeof migrations;
   projects: typeof projects;
