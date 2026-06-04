@@ -20,6 +20,13 @@ titre que l'email ou le téléphone. Attribut durable de la personne, **pas** un
 événement de la timeline. À ne pas confondre avec l'Interaction de type `linkedin`
 (« j'ai échangé avec lui sur LinkedIn le … »).
 
+## Prospect
+
+L'**état d'entrée** d'un Contact dans le pipeline : le stage `nouveau`. « Prospect »
+est le **libellé** de ce stage (pas une entité ni un stage distinct). Tout Contact
+créé par un **Import** y atterrit. À distinguer des stages suivants (Contacté, RDV,
+Proposition, Gagné, Perdu).
+
 ## Entreprise
 
 Une **organisation** (« compte ») suivie dans le CRM, à laquelle des Contacts sont
@@ -40,6 +47,27 @@ On désigne l'Entreprise **survivante** (nom canonique) ; tous les Contacts de
 l'Entreprise **absorbée** lui sont rattachés, puis l'absorbée est supprimée. C'est
 la voie normale pour éliminer les doublons (une Entreprise ne peut pas être
 supprimée tant que des Contacts lui sont rattachés).
+
+## Import (de contacts)
+
+Opération de création **en masse** de Contacts à partir d'un fichier (CSV ou XLSX),
+chacun entrant comme **Prospect**. L'opérateur mappe les colonnes, lève les
+**Doublons**, résout les **Rattachements** d'Entreprise non reconnus, puis valide
+le lot (« validation humaine »). À distinguer de la création unitaire d'un Contact.
+
+## Doublon (de contact)
+
+Un Contact importé qui désigne **la même personne** qu'un Contact existant. Le
+critère est l'**email** (normalisé). Une ligne sans email n'est jamais un doublon
+(toujours une création). On ne fait **pas** de rapprochement par nom — même esprit
+« sans flou » que pour l'Entreprise (cf. Fusion).
+
+## Enrichissement
+
+Le traitement d'un **Doublon** : au lieu de créer un Contact, l'Import **complète
+les champs vides** du Contact existant (« remplir si vide ») sans jamais écraser une
+donnée déjà saisie. Les notes sont **concaténées** (comme la Fusion). À distinguer
+de la **Création** (Contact réellement nouveau).
 
 ## Propriétaire (owner)
 
