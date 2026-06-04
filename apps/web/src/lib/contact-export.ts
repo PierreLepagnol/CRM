@@ -16,7 +16,10 @@ type ContactRow = Pick<
   | "montant"
   | "stage"
   | "next_relance_at"
->;
+> & {
+  /** Nom de l'Entreprise liée (source de vérité d'affichage, cf. ADR 0001). */
+  entreprise_nom?: string;
+};
 
 /**
  * Construit les lignes CSV d'export des contacts. Le propriétaire et les
@@ -30,7 +33,7 @@ export function buildContactCsvRows(
   return contacts.map((c) => ({
     Prénom: c.prenom,
     Nom: c.nom,
-    Entreprise: c.entreprise ?? "",
+    Entreprise: c.entreprise_nom ?? c.entreprise ?? "",
     Email: c.email ?? "",
     Téléphone: c.telephone ?? "",
     Poste: c.poste ?? "",

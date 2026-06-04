@@ -27,6 +27,24 @@ export const STATUTS = [
   { id: "termine" as ProjectStatut, label: "Terminé", badgeClass: "bg-emerald-100 text-emerald-700" },
 ] as const;
 
+export type SecteurEntreprise = NonNullable<Doc<"entreprises">["secteur"]>;
+
+export const SECTEURS = [
+  { id: "banque" as SecteurEntreprise, label: "Banque" },
+  { id: "assurance" as SecteurEntreprise, label: "Assurance" },
+  { id: "industrie" as SecteurEntreprise, label: "Industrie" },
+  { id: "secteur_public" as SecteurEntreprise, label: "Secteur public" },
+  { id: "services" as SecteurEntreprise, label: "Services" },
+  { id: "autre" as SecteurEntreprise, label: "Autre" },
+] as const;
+
+export const SECTEUR_ITEMS = SECTEURS.map((s) => ({ value: s.id, label: s.label }));
+
+export function secteurLabel(id: SecteurEntreprise | undefined) {
+  if (!id) return "Non renseigné";
+  return SECTEURS.find((s) => s.id === id)?.label ?? id;
+}
+
 export const INTERACTION_TYPES: { id: InteractionType; label: string; icon: ElementType }[] = [
   { id: "email", label: "Email", icon: Mail },
   { id: "appel", label: "Appel", icon: Phone },

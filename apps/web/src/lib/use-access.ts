@@ -4,7 +4,7 @@ import { api } from "@CRM-APP/backend/convex/_generated/api";
 import { useConvexAuth, useMutation, useQuery } from "convex/react";
 import { useEffect, useRef } from "react";
 
-export type PageKey = "pipeline" | "contacts" | "projets" | "admin";
+export type PageKey = "pipeline" | "contacts" | "entreprises" | "projets" | "admin";
 export type RoleKey = "admin" | "commercial" | "lecteur";
 
 /**

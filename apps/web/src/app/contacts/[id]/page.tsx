@@ -31,6 +31,10 @@ import { toast } from "sonner";
 
 import { AppShell } from "@/components/app-shell";
 import {
+  EntrepriseCombobox,
+  type EntrepriseValue,
+} from "@/components/entreprise-combobox";
+import {
   OwnerSelect,
   ResponsiblesMultiSelect,
   resolveUser,
@@ -64,6 +68,8 @@ function ContactDetail({ id }: { id: Id<"contacts"> }) {
   const interactions = useQuery(api.interactions.listByContact, { contact_id: id });
   const update = useMutation(api.contacts.update);
   const remove = useMutation(api.contacts.remove);
+  const attachEntreprise = useMutation(api.entreprises.attachContact);
+  const detachEntreprise = useMutation(api.entreprises.detachContact);
   const createInteraction = useMutation(api.interactions.create);
   const deleteInteraction = useMutation(api.interactions.remove);
   const router = useRouter();
@@ -71,7 +77,7 @@ function ContactDetail({ id }: { id: Id<"contacts"> }) {
   const [draftContactId, setDraftContactId] = useState<Id<"contacts"> | null>(null);
   const [prenom, setPrenom] = useState("");
   const [nom, setNom] = useState("");
-  const [entreprise, setEntreprise] = useState("");
+  const [entreprise, setEntreprise] = useState<EntrepriseValue>({ nom: "" });
   const [email, setEmail] = useState("");
   const [telephone, setTelephone] = useState("");
   const [poste, setPoste] = useState("");
@@ -93,7 +99,10 @@ function ContactDetail({ id }: { id: Id<"contacts"> }) {
     setDraftContactId(contact._id);
     setPrenom(contact.prenom);
     setNom(contact.nom);
-    setEntreprise(contact.entreprise ?? "");
+    setEntreprise({
+      id: contact.entreprise_id,
+      nom: contact.entreprise_nom ?? contact.entreprise ?? "",
+    });
     setEmail(contact.email ?? "");
     setTelephone(contact.telephone ?? "");
     setPoste(contact.poste ?? "");
@@ -113,9 +122,27 @@ function ContactDetail({ id }: { id: Id<"contacts"> }) {
       <div className="p-8 text-center text-sm text-muted-foreground">Contact introuvable.</div>
     );
 
+  const entrepriseNom = contact.entreprise_nom ?? contact.entreprise;
+
   const persist = async (patch: Parameters<typeof update>[0]["patch"]) => {
     try { await update({ id, patch }); }
     catch { toast.error("Échec de la mise à jour."); }
+  };
+
+  // Le rattachement à une entreprise se persiste dès qu'une entreprise est
+  // choisie/créée (id présent) ou effacée. Une saisie partielle sans sélection
+  // n'écrit rien tant qu'aucune entreprise réelle n'est désignée.
+  const onEntrepriseChange = async (next: EntrepriseValue) => {
+    setEntreprise(next);
+    try {
+      if (next.id) {
+        await attachEntreprise({ contact_id: id, entreprise_id: next.id });
+      } else if (!next.nom.trim()) {
+        await detachEntreprise({ contact_id: id });
+      }
+    } catch {
+      toast.error("Échec du rattachement.");
+    }
   };
 
   const onDelete = async () => {
@@ -196,8 +223,8 @@ function ContactDetail({ id }: { id: Id<"contacts"> }) {
             <h1 className="text-xl font-semibold">{contact.prenom} {contact.nom}</h1>
             <div className="text-sm text-muted-foreground">
               {contact.poste && <span>{contact.poste}</span>}
-              {contact.poste && contact.entreprise && <span> · </span>}
-              {contact.entreprise && <span>{contact.entreprise}</span>}
+              {contact.poste && entrepriseNom && <span> · </span>}
+              {entrepriseNom && <span>{entrepriseNom}</span>}
             </div>
           </div>
         </div>
@@ -311,7 +338,7 @@ function ContactDetail({ id }: { id: Id<"contacts"> }) {
           </div>
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="cd-entreprise">Entreprise</Label>
-            <Input id="cd-entreprise" value={entreprise} onChange={(e) => setEntreprise(e.target.value)} onBlur={() => persist({ entreprise: entreprise.trim() || undefined })} />
+            <EntrepriseCombobox id="cd-entreprise" value={entreprise} onChange={onEntrepriseChange} />
           </div>
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="cd-poste">Poste</Label>

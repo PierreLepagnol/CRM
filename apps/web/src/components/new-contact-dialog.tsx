@@ -27,6 +27,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 import { STAGES, STAGE_ITEMS, type ContactStage } from "@/lib/crm";
+import { EntrepriseCombobox, type EntrepriseValue } from "./entreprise-combobox";
 import {
   OwnerSelect,
   ResponsiblesMultiSelect,
@@ -37,7 +38,7 @@ export function NewContactDialog({ defaultStage }: { defaultStage?: ContactStage
   const [open, setOpen] = useState(false);
   const [prenom, setPrenom] = useState("");
   const [nom, setNom] = useState("");
-  const [entreprise, setEntreprise] = useState("");
+  const [entreprise, setEntreprise] = useState<EntrepriseValue>({ nom: "" });
   const [email, setEmail] = useState("");
   const [telephone, setTelephone] = useState("");
   const [poste, setPoste] = useState("");
@@ -48,6 +49,7 @@ export function NewContactDialog({ defaultStage }: { defaultStage?: ContactStage
   const [loading, setLoading] = useState(false);
 
   const create = useMutation(api.contacts.create);
+  const createEntreprise = useMutation(api.entreprises.create);
   const users = useAppUsers();
   const currentUser = useQuery(api.auth.getCurrentUser);
   const currentUserId = currentUser?._id as string | undefined;
@@ -55,7 +57,7 @@ export function NewContactDialog({ defaultStage }: { defaultStage?: ContactStage
   const reset = () => {
     setPrenom("");
     setNom("");
-    setEntreprise("");
+    setEntreprise({ nom: "" });
     setEmail("");
     setTelephone("");
     setPoste("");
@@ -71,10 +73,18 @@ export function NewContactDialog({ defaultStage }: { defaultStage?: ContactStage
     if (!prenom.trim() || !nom.trim()) return;
     setLoading(true);
     try {
+      // Résout l'entreprise en entité réelle : si du texte a été tapé sans
+      // sélection explicite, `create` (idempotent sur le nom normalisé) renvoie
+      // l'entreprise existante ou en crée une. Cf. ADR 0001.
+      const entrepriseNom = entreprise.nom.trim();
+      const entrepriseId =
+        entreprise.id ??
+        (entrepriseNom ? await createEntreprise({ nom: entrepriseNom }) : undefined);
       await create({
         prenom: prenom.trim(),
         nom: nom.trim(),
-        entreprise: entreprise.trim() || undefined,
+        entreprise: entrepriseNom || undefined,
+        entreprise_id: entrepriseId,
         email: email.trim() || undefined,
         telephone: telephone.trim() || undefined,
         poste: poste.trim() || undefined,
@@ -143,11 +153,10 @@ export function NewContactDialog({ defaultStage }: { defaultStage?: ContactStage
               </div>
               <div className="col-span-2 flex flex-col gap-1.5">
                 <Label htmlFor="nc-entreprise">Entreprise</Label>
-                <Input
+                <EntrepriseCombobox
                   id="nc-entreprise"
                   value={entreprise}
-                  onChange={(e) => setEntreprise(e.target.value)}
-                  className="h-11 text-base"
+                  onChange={setEntreprise}
                 />
               </div>
               <div className="flex flex-col gap-1.5">
