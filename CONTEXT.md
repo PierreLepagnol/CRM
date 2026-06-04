@@ -9,6 +9,17 @@ Une personne suivie dans le CRM (prospect ou relation). Porte un état de pipeli
 (`stage`), un montant, des coordonnées, et des liens vers des utilisateurs SCIAM
 (voir Propriétaire, Responsable). Peut être **rattaché** à une Entreprise.
 
+Ses **coordonnées** sont des attributs durables permettant de joindre la personne :
+email, téléphone, et **Profil LinkedIn**. À distinguer d'une Interaction de type
+`linkedin`, qui est un *échange daté* et non une coordonnée (cf. Interaction).
+
+## Profil LinkedIn
+
+L'**adresse (URL) du profil LinkedIn** d'un Contact : une **coordonnée**, au même
+titre que l'email ou le téléphone. Attribut durable de la personne, **pas** un
+événement de la timeline. À ne pas confondre avec l'Interaction de type `linkedin`
+(« j'ai échangé avec lui sur LinkedIn le … »).
+
 ## Entreprise
 
 Une **organisation** (« compte ») suivie dans le CRM, à laquelle des Contacts sont
@@ -57,7 +68,8 @@ principale.
 Un échange consigné sur la timeline d'un contact (« Historique des échanges ») :
 `email`, `appel`, `rdv`, `linkedin`, `relance`. Porte une **date**, un **résumé**
 et un **auteur** (le Créateur de l'interaction, distinct du Propriétaire du
-contact).
+contact). Le type `linkedin` désigne un *échange via LinkedIn* (un événement daté) —
+à distinguer du **Profil LinkedIn**, qui est une coordonnée du Contact.
 
 ## Relance
 

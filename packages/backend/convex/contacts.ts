@@ -132,6 +132,7 @@ const sharedOptionalFields = {
   entreprise_id: v.optional(v.id("entreprises")),
   email: v.optional(v.string()),
   telephone: v.optional(v.string()),
+  linkedin_url: v.optional(v.string()),
   poste: v.optional(v.string()),
   contact_sciam: v.optional(v.string()),
   owner_id: v.optional(v.string()),
@@ -154,6 +155,7 @@ const contactPatchFields = {
   entreprise: v.optional(v.string()),
   email: v.optional(v.string()),
   telephone: v.optional(v.string()),
+  linkedin_url: v.optional(v.string()),
   poste: v.optional(v.string()),
   contact_sciam: v.optional(v.string()),
   // null means "clear the field" (undefined is dropped by JSON serialization)

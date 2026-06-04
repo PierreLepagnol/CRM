@@ -55,4 +55,17 @@ describe("buildContactCsvRows", () => {
     const rows = buildContactCsvRows([baseContact({ entreprise: "Generali" })], resolveName);
     expect(rows[0]["Entreprise"]).toBe("Generali");
   });
+
+  it("exporte l'URL du profil LinkedIn dans une colonne dédiée", () => {
+    const rows = buildContactCsvRows(
+      [baseContact({ linkedin_url: "https://www.linkedin.com/in/jean-dupont/" })],
+      resolveName,
+    );
+    expect(rows[0]["Profil LinkedIn"]).toBe("https://www.linkedin.com/in/jean-dupont/");
+  });
+
+  it("laisse la colonne Profil LinkedIn vide quand le contact n'en a pas", () => {
+    const rows = buildContactCsvRows([baseContact({})], resolveName);
+    expect(rows[0]["Profil LinkedIn"]).toBe("");
+  });
 });

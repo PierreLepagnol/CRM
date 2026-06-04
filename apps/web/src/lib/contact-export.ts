@@ -10,6 +10,7 @@ type ContactRow = Pick<
   | "entreprise"
   | "email"
   | "telephone"
+  | "linkedin_url"
   | "poste"
   | "owner_id"
   | "responsible_ids"
@@ -36,6 +37,7 @@ export function buildContactCsvRows(
     Entreprise: c.entreprise_nom ?? c.entreprise ?? "",
     Email: c.email ?? "",
     Téléphone: c.telephone ?? "",
+    "Profil LinkedIn": c.linkedin_url ?? "",
     Poste: c.poste ?? "",
     Propriétaire: c.owner_id ? (resolveName(c.owner_id) ?? "") : "",
     Responsables: (c.responsible_ids ?? [])
