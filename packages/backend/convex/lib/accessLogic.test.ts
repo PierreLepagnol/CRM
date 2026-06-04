@@ -37,6 +37,7 @@ describe("allowedPagesFromRows", () => {
     expect(allowedPagesFromRows("commercial", [])).toEqual([
       "pipeline",
       "contacts",
+      "entreprises",
     ]);
   });
 });

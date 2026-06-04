@@ -108,7 +108,7 @@ function ContactsList() {
                     </Link>
                   </td>
                   <td className="hidden px-4 py-2 text-muted-foreground sm:table-cell">
-                    {c.entreprise ?? "—"}
+                    {c.entreprise_nom ?? c.entreprise ?? "—"}
                   </td>
                   <td className="hidden px-4 py-2 text-muted-foreground md:table-cell">
                     {c.email ? (

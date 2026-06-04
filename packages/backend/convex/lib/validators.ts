@@ -49,6 +49,16 @@ export const projectStatut = v.union(
   v.literal("termine"),
 );
 
+/** Secteur d'activité d'une Entreprise (liste fermée, cf. CONTEXT.md). */
+export const secteurEntreprise = v.union(
+  v.literal("banque"),
+  v.literal("assurance"),
+  v.literal("industrie"),
+  v.literal("secteur_public"),
+  v.literal("services"),
+  v.literal("autre"),
+);
+
 // --- Access control -------------------------------------------------------
 
 /** Rôles applicatifs. Le rôle est stocké dans `app_users.role`. */
@@ -62,23 +72,30 @@ export const roleKey = v.union(
 export const pageKey = v.union(
   v.literal("pipeline"),
   v.literal("contacts"),
+  v.literal("entreprises"),
   v.literal("projets"),
   v.literal("admin"),
 );
 
 export type RoleKey = "admin" | "commercial" | "lecteur";
-export type PageKey = "pipeline" | "contacts" | "projets" | "admin";
+export type PageKey = "pipeline" | "contacts" | "entreprises" | "projets" | "admin";
 
 export const ALL_ROLES: RoleKey[] = ["admin", "commercial", "lecteur"];
-export const ALL_PAGES: PageKey[] = ["pipeline", "contacts", "projets", "admin"];
+export const ALL_PAGES: PageKey[] = [
+  "pipeline",
+  "contacts",
+  "entreprises",
+  "projets",
+  "admin",
+];
 
 /**
  * Pages autorisées par défaut pour chaque rôle. Sert de seed pour
  * `role_permissions` et de repli quand aucune ligne n'existe encore.
  */
 export const DEFAULT_ROLE_PAGES: Record<RoleKey, PageKey[]> = {
-  admin: ["pipeline", "contacts", "projets", "admin"],
-  commercial: ["pipeline", "contacts"],
+  admin: ["pipeline", "contacts", "entreprises", "projets", "admin"],
+  commercial: ["pipeline", "contacts", "entreprises"],
   lecteur: ["pipeline"],
 };
 

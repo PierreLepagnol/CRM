@@ -2,7 +2,7 @@ import { v } from "convex/values";
 
 import type { Id } from "./_generated/dataModel";
 import { mutation, query } from "./_generated/server";
-import type { MutationCtx } from "./_generated/server";
+import type { MutationCtx, QueryCtx } from "./_generated/server";
 import { guardContactRead, requireContactWrite } from "./access";
 import { requireUserId } from "./lib/auth";
 import { toClearableDbPatch } from "./lib/contactPatch";
@@ -18,6 +18,29 @@ async function getMaxPosition(ctx: MutationCtx, stage: string): Promise<number> 
   return rows ? rows.position + 1 : 0;
 }
 
+/**
+ * Attache à chaque contact le nom de son Entreprise liée (`entreprise_nom`),
+ * résolu depuis `entreprise_id`. C'est la source de vérité d'affichage ; le
+ * champ texte legacy `entreprise` ne sert plus que de repli (contacts non
+ * encore migrés). Cf. docs/adr/0001-entreprise-entite-premier-ordre.md.
+ */
+async function withEntrepriseNom<T extends { entreprise_id?: Id<"entreprises"> }>(
+  ctx: QueryCtx,
+  rows: T[],
+): Promise<(T & { entreprise_nom?: string })[]> {
+  const ids = [...new Set(rows.map((r) => r.entreprise_id).filter(Boolean))] as Id<"entreprises">[];
+  const entreprises = await Promise.all(ids.map((id) => ctx.db.get(id)));
+  const nameById = new Map(
+    entreprises
+      .filter((e): e is NonNullable<typeof e> => e !== null && e.deleted_at === undefined)
+      .map((e) => [e._id as string, e.nom]),
+  );
+  return rows.map((r) => ({
+    ...r,
+    entreprise_nom: r.entreprise_id ? nameById.get(r.entreprise_id as string) : undefined,
+  }));
+}
+
 export const list = query({
   args: {},
   handler: async (ctx) => {
@@ -27,7 +50,7 @@ export const list = query({
       .withIndex("by_updated_at")
       .order("desc")
       .collect();
-    return rows.filter((c) => c.deleted_at === undefined);
+    return withEntrepriseNom(ctx, rows.filter((c) => c.deleted_at === undefined));
   },
 });
 
@@ -40,7 +63,7 @@ export const listByStage = query({
       .withIndex("by_stage_and_position", (q) => q.eq("stage", args.stage))
       .order("asc")
       .collect();
-    return rows.filter((c) => c.deleted_at === undefined);
+    return withEntrepriseNom(ctx, rows.filter((c) => c.deleted_at === undefined));
   },
 });
 
@@ -50,7 +73,9 @@ export const get = query({
   handler: async (ctx, args) => {
     if (!(await guardContactRead(ctx))) return null;
     const row = await ctx.db.get(args.id);
-    return row?.deleted_at === undefined ? row : null;
+    if (!row || row.deleted_at !== undefined) return null;
+    const [enriched] = await withEntrepriseNom(ctx, [row]);
+    return enriched;
   },
 });
 
@@ -74,7 +99,10 @@ export const search = query({
     const combined = [...byNom, ...byPrenom, ...byEntreprise].filter(
       (c) => c.deleted_at === undefined,
     );
-    return combined.filter((c, i, arr) => arr.findIndex((x) => x._id === c._id) === i).slice(0, 15);
+    const deduped = combined
+      .filter((c, i, arr) => arr.findIndex((x) => x._id === c._id) === i)
+      .slice(0, 15);
+    return withEntrepriseNom(ctx, deduped);
   },
 });
 
@@ -101,6 +129,7 @@ export const listDueRelances = query({
 
 const sharedOptionalFields = {
   entreprise: v.optional(v.string()),
+  entreprise_id: v.optional(v.id("entreprises")),
   email: v.optional(v.string()),
   telephone: v.optional(v.string()),
   poste: v.optional(v.string()),

@@ -11,7 +11,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@CRM-APP/ui/components/sidebar";
-import { FolderKanban, Kanban, Settings, Users } from "lucide-react";
+import { Building2, FolderKanban, Kanban, Settings, Users } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -22,6 +22,7 @@ import UserMenu from "./user-menu";
 const NAV = [
   { href: "/pipeline", label: "Pipeline", icon: Kanban, page: "pipeline" as PageKey },
   { href: "/contacts", label: "Contacts", icon: Users, page: "contacts" as PageKey },
+  { href: "/entreprises", label: "Entreprises", icon: Building2, page: "entreprises" as PageKey },
   { href: "/projets", label: "Projets", icon: FolderKanban, page: "projets" as PageKey },
   { href: "/admin", label: "Administration", icon: Settings, page: "admin" as PageKey },
 ] as const;

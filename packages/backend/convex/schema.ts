@@ -8,6 +8,7 @@ import {
   projectStatut,
   projectType,
   roleKey,
+  secteurEntreprise,
   timestampMs,
   userIdString,
 } from "./lib/validators";
@@ -33,10 +34,29 @@ export default defineSchema({
     updated_at: timestampMs,
   }).index("by_role", ["role"]),
 
+  // Organisations (« comptes ») auxquelles des contacts sont rattachés.
+  // Entité de premier ordre — cf. docs/adr/0001-entreprise-entite-premier-ordre.md.
+  entreprises: defineTable({
+    nom: v.string(),
+    // Nom normalisé (casse/accents/espaces) pour le garde-fou anti-doublon et
+    // la recherche exacte. Cf. lib/entrepriseLogic.normalizeEntrepriseName.
+    nom_normalise: v.string(),
+    secteur: v.optional(secteurEntreprise),
+    site_web: v.optional(v.string()),
+    notes_md: v.optional(v.string()),
+    created_by: userIdString,
+    updated_at: timestampMs,
+    deleted_at: v.optional(timestampMs),
+  })
+    .index("by_nom_normalise", ["nom_normalise"])
+    .index("by_updated_at", ["updated_at"])
+    .searchIndex("search_nom", { searchField: "nom" }),
+
   contacts: defineTable({
     prenom: v.string(),
     nom: v.string(),
-    entreprise: v.optional(v.string()),
+    entreprise: v.optional(v.string()), // legacy: texte libre, remplacé par entreprise_id
+    entreprise_id: v.optional(v.id("entreprises")),
     montant: v.optional(v.number()),
     email: v.optional(v.string()),
     telephone: v.optional(v.string()),
@@ -55,6 +75,7 @@ export default defineSchema({
     .index("by_stage_and_position", ["stage", "position"])
     .index("by_updated_at", ["updated_at"])
     .index("by_next_relance_at", ["next_relance_at"])
+    .index("by_entreprise", ["entreprise_id"])
     .searchIndex("search_nom", { searchField: "nom", filterFields: ["stage"] })
     .searchIndex("search_prenom", { searchField: "prenom" })
     .searchIndex("search_entreprise", { searchField: "entreprise" }),

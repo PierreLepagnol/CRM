@@ -42,4 +42,17 @@ describe("buildContactCsvRows", () => {
     const rows = buildContactCsvRows([baseContact({})], resolveName);
     expect("Contact SCIAM" in rows[0]).toBe(false);
   });
+
+  it("exporte le nom de l'entreprise liée plutôt que le texte legacy", () => {
+    const rows = buildContactCsvRows(
+      [baseContact({ entreprise: "credit agricole", entreprise_nom: "Crédit Agricole CIB" })],
+      resolveName,
+    );
+    expect(rows[0]["Entreprise"]).toBe("Crédit Agricole CIB");
+  });
+
+  it("retombe sur le texte legacy quand aucune entreprise n'est liée", () => {
+    const rows = buildContactCsvRows([baseContact({ entreprise: "Generali" })], resolveName);
+    expect(rows[0]["Entreprise"]).toBe("Generali");
+  });
 });

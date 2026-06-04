@@ -21,7 +21,7 @@ import {
 } from "./user-picker";
 import { Avatar, AvatarFallback, AvatarImage } from "@CRM-APP/ui/components/avatar";
 
-type ContactDoc = Doc<"contacts">;
+type ContactDoc = Doc<"contacts"> & { entreprise_nom?: string };
 
 function totalMontant(contacts: ContactDoc[]) {
   return contacts.reduce((total, contact) => total + (contact.montant ?? 0), 0);
@@ -220,10 +220,10 @@ function ContactCard({
           </Badge>
         )}
       </div>
-      {contact.entreprise && (
+      {(contact.entreprise_nom ?? contact.entreprise) && (
         <div className="flex items-center gap-1 text-xs text-muted-foreground">
           <Building2 className="size-3" />
-          {contact.entreprise}
+          {contact.entreprise_nom ?? contact.entreprise}
         </div>
       )}
       {contact.poste && (

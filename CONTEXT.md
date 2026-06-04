@@ -7,7 +7,28 @@
 
 Une personne suivie dans le CRM (prospect ou relation). Porte un état de pipeline
 (`stage`), un montant, des coordonnées, et des liens vers des utilisateurs SCIAM
-(voir Propriétaire, Responsable).
+(voir Propriétaire, Responsable). Peut être **rattaché** à une Entreprise.
+
+## Entreprise
+
+Une **organisation** (« compte ») suivie dans le CRM, à laquelle des Contacts sont
+rattachés. C'est une **entité de premier ordre** : un enregistrement unique avec
+sa propre identité, pas un simple libellé saisi. « Crédit Agricole CIB » désigne
+**une seule** Entreprise, quelle que soit l'orthographe tapée par les utilisateurs.
+Une Entreprise regroupe ses Contacts (relation un-à-plusieurs).
+
+## Rattachement
+
+Le lien entre un Contact et son Entreprise. Optionnel (un contact peut n'être
+rattaché à aucune entreprise) et au plus une Entreprise par Contact.
+
+## Fusion (d'entreprises)
+
+Opération de consolidation de deux Entreprises faisant double emploi en une seule.
+On désigne l'Entreprise **survivante** (nom canonique) ; tous les Contacts de
+l'Entreprise **absorbée** lui sont rattachés, puis l'absorbée est supprimée. C'est
+la voie normale pour éliminer les doublons (une Entreprise ne peut pas être
+supprimée tant que des Contacts lui sont rattachés).
 
 ## Propriétaire (owner)
 

@@ -80,3 +80,67 @@ describe("backfillContactOwners", () => {
     expect(await ownerOf(t, "Owned")).toBe("someone-else");
   });
 });
+
+async function seedEntrepriseTexts(t: ReturnType<typeof convexTest>) {
+  await t.run(async (ctx) => {
+    // Deux orthographes équivalentes de la même entreprise → une seule entreprise.
+    await ctx.db.insert("contacts", {
+      prenom: "K", nom: "Belamri", entreprise: "Generali",
+      stage: "nouveau", position: 0, created_by: "u1", updated_at: 1,
+    });
+    await ctx.db.insert("contacts", {
+      prenom: "C", nom: "Defraine", entreprise: "  generali ",
+      stage: "nouveau", position: 1, created_by: "u1", updated_at: 1,
+    });
+    // Orthographe distincte → entreprise distincte (pas de fusion floue).
+    await ctx.db.insert("contacts", {
+      prenom: "J", nom: "Queinnec", entreprise: "Crédit Logement",
+      stage: "nouveau", position: 2, created_by: "u1", updated_at: 1,
+    });
+    // Sans entreprise → reste non rattaché.
+    await ctx.db.insert("contacts", {
+      prenom: "Y", nom: "SansBoite",
+      stage: "nouveau", position: 3, created_by: "u1", updated_at: 1,
+    });
+    // Supprimé → ignoré.
+    await ctx.db.insert("contacts", {
+      prenom: "Z", nom: "Mort", entreprise: "Fantôme",
+      stage: "nouveau", position: 4, created_by: "u1", updated_at: 1, deleted_at: 2,
+    });
+  });
+}
+
+async function contactByNom(t: ReturnType<typeof convexTest>, nom: string) {
+  return await t.run(async (ctx) => {
+    const all = await ctx.db.query("contacts").collect();
+    return all.find((c) => c.nom === nom);
+  });
+}
+
+describe("backfillEntreprises", () => {
+  it("crée une entreprise par nom normalisé distinct et rattache les contacts", async () => {
+    const t = convexTest(schema, modules);
+    await seedEntrepriseTexts(t);
+
+    await t.mutation(internal.migrations.backfillEntreprises, {});
+
+    const entreprises = await t.run((ctx) => ctx.db.query("entreprises").collect());
+    // Generali (×2 orthographes) + Crédit Logement = 2. (Fantôme est supprimé.)
+    expect(entreprises.length).toBe(2);
+
+    const belamri = await contactByNom(t, "Belamri");
+    const defraine = await contactByNom(t, "Defraine");
+    // Les deux orthographes de Generali pointent vers la MÊME entreprise.
+    expect(belamri?.entreprise_id).toBeDefined();
+    expect(belamri?.entreprise_id).toBe(defraine?.entreprise_id);
+
+    const queinnec = await contactByNom(t, "Queinnec");
+    expect(queinnec?.entreprise_id).toBeDefined();
+    expect(queinnec?.entreprise_id).not.toBe(belamri?.entreprise_id);
+
+    // Contact sans entreprise : non rattaché.
+    expect((await contactByNom(t, "SansBoite"))?.entreprise_id).toBeUndefined();
+    // Contact supprimé : non rattaché, et son entreprise n'est pas créée.
+    expect((await contactByNom(t, "Mort"))?.entreprise_id).toBeUndefined();
+  });
+});

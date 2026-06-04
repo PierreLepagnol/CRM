@@ -3,6 +3,7 @@ import { components } from "./_generated/api";
 import { v } from "convex/values";
 import type { Id } from "./_generated/dataModel";
 import { pickBackfillOwner } from "./lib/accessLogic";
+import { normalizeEntrepriseName } from "./lib/entrepriseLogic";
 
 // Utilisateur par défaut pour les contacts orphelins que le rapprochement par
 // nom ne résout pas (décision : nettoyage ponctuel, voir CONTEXT.md).
@@ -175,5 +176,53 @@ export const backfillContactOwners = internalMutation({
     }
 
     return { matched, defaulted };
+  },
+});
+
+// One-shot backfill: convertit le champ texte legacy `contacts.entreprise` en
+// entité Entreprise. Pour chaque nom normalisé distinct (trim/casse/accents),
+// crée UNE entreprise (en gardant la première orthographe rencontrée comme nom
+// affiché) et renseigne `entreprise_id` sur les contacts concernés. Pas de
+// fusion floue : « Crédit Agricole » et « Crédit Agricole CIB » restent
+// distincts (cf. ADR 0001). Les contacts supprimés ou déjà rattachés sont
+// ignorés. Idempotent : réutilise une entreprise existante de même nom normalisé.
+// Run once after deploy:
+//   npx convex run migrations:backfillEntreprises
+export const backfillEntreprises = internalMutation({
+  args: {},
+  handler: async (ctx) => {
+    const existing = await ctx.db.query("entreprises").collect();
+    const byNorm = new Map<string, Id<"entreprises">>();
+    for (const e of existing) {
+      if (e.deleted_at === undefined) byNorm.set(e.nom_normalise, e._id);
+    }
+
+    const contacts = await ctx.db.query("contacts").collect();
+    let created = 0;
+    let linked = 0;
+
+    for (const c of contacts) {
+      if (c.deleted_at !== undefined || c.entreprise_id) continue;
+      const raw = c.entreprise?.trim();
+      if (!raw) continue;
+      const norm = normalizeEntrepriseName(raw);
+      if (!norm) continue;
+
+      let entrepriseId = byNorm.get(norm);
+      if (!entrepriseId) {
+        entrepriseId = await ctx.db.insert("entreprises", {
+          nom: raw,
+          nom_normalise: norm,
+          created_by: c.created_by,
+          updated_at: Date.now(),
+        });
+        byNorm.set(norm, entrepriseId);
+        created++;
+      }
+      await ctx.db.patch(c._id, { entreprise_id: entrepriseId, updated_at: Date.now() });
+      linked++;
+    }
+
+    return { created, linked };
   },
 });
