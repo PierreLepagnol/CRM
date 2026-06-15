@@ -99,6 +99,11 @@ et un **auteur** (le Créateur de l'interaction, distinct du Propriétaire du
 contact). Le type `linkedin` désigne un *échange via LinkedIn* (un événement daté) —
 à distinguer du **Profil LinkedIn**, qui est une coordonnée du Contact.
 
+Le **résumé** est une chaîne de texte libre qui s'affiche rendue en **Markdown**
+(gras, italique, listes). L'éditeur sera à terme un composant Lexical ; en
+attendant, la saisie reste un `<Textarea>` standard et l'affichage est un
+lecteur Lexical en mode lecture seule.
+
 ## Relance
 
 **Un type d'Interaction**, pas une entité distincte : un rappel de suivi à une

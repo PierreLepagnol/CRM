@@ -30,6 +30,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 import { AppShell } from "@/components/app-shell";
+import { MarkdownViewer } from "@/components/markdown-viewer";
 import {
   EntrepriseCombobox,
   type EntrepriseValue,
@@ -511,7 +512,7 @@ function ContactDetail({ id }: { id: Id<"contacts"> }) {
                         <X className="size-3" />
                       </Button>
                     </div>
-                    <p className="mt-0.5 text-sm">{inter.resume}</p>
+                    <MarkdownViewer content={inter.resume} />
                   </div>
                 </li>
               );
