@@ -123,16 +123,16 @@ export function NewContactDialog({ defaultStage }: { defaultStage?: ContactStage
           </Button>
         }
       />
-      <DialogContent className="sm:max-w-3xl w-full flex flex-col p-0">
-        <DialogHeader className="px-8 pt-8 pb-4 border-b">
-          <DialogTitle className="text-2xl">Nouveau contact</DialogTitle>
+      <DialogContent className="sm:max-w-3xl w-full flex flex-col p-0 max-h-[90vh]">
+        <DialogHeader className="px-6 pt-6 pb-3 border-b">
+          <DialogTitle className="text-xl">Nouveau contact</DialogTitle>
           <DialogDescription>
             Renseignez les informations du contact à créer.
           </DialogDescription>
         </DialogHeader>
-        <form onSubmit={onSubmit} className="flex flex-col flex-1 overflow-hidden">
-          <div className="flex-1 overflow-y-auto px-8 py-6">
-            <div className="grid grid-cols-2 gap-6">
+        <form onSubmit={onSubmit} className="flex flex-col flex-1 min-h-0 overflow-hidden">
+          <div className="flex-1 overflow-y-auto px-6 py-4">
+            <div className="grid grid-cols-2 gap-4">
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="nc-prenom">Prénom *</Label>
                 <Input
@@ -141,7 +141,7 @@ export function NewContactDialog({ defaultStage }: { defaultStage?: ContactStage
                   onChange={(e) => setPrenom(e.target.value)}
                   required
                   autoFocus
-                  className="h-11 text-base"
+                  className="h-9"
                 />
               </div>
               <div className="flex flex-col gap-1.5">
@@ -151,7 +151,7 @@ export function NewContactDialog({ defaultStage }: { defaultStage?: ContactStage
                   value={nom}
                   onChange={(e) => setNom(e.target.value)}
                   required
-                  className="h-11 text-base"
+                  className="h-9"
                 />
               </div>
               <div className="col-span-2 flex flex-col gap-1.5">
@@ -169,7 +169,7 @@ export function NewContactDialog({ defaultStage }: { defaultStage?: ContactStage
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="h-11 text-base"
+                  className="h-9"
                 />
               </div>
               <div className="flex flex-col gap-1.5">
@@ -178,7 +178,7 @@ export function NewContactDialog({ defaultStage }: { defaultStage?: ContactStage
                   id="nc-tel"
                   value={telephone}
                   onChange={(e) => setTelephone(e.target.value)}
-                  className="h-11 text-base"
+                  className="h-9"
                 />
               </div>
               <div className="flex flex-col gap-1.5">
@@ -187,7 +187,7 @@ export function NewContactDialog({ defaultStage }: { defaultStage?: ContactStage
                   id="nc-poste"
                   value={poste}
                   onChange={(e) => setPoste(e.target.value)}
-                  className="h-11 text-base"
+                  className="h-9"
                 />
               </div>
               <div className="col-span-2 flex flex-col gap-1.5">
@@ -198,7 +198,7 @@ export function NewContactDialog({ defaultStage }: { defaultStage?: ContactStage
                   placeholder="https://www.linkedin.com/in/…"
                   value={linkedinUrl}
                   onChange={(e) => setLinkedinUrl(e.target.value)}
-                  className="h-11 text-base"
+                  className="h-9"
                 />
               </div>
               <div className="flex flex-col gap-1.5">
@@ -222,13 +222,13 @@ export function NewContactDialog({ defaultStage }: { defaultStage?: ContactStage
                   step={100}
                   value={montant}
                   onChange={(e) => setMontant(e.target.value)}
-                  className="h-11 text-base"
+                  className="h-9"
                 />
               </div>
               <div className="col-span-2 flex flex-col gap-1.5">
                 <Label htmlFor="nc-stage">Stage</Label>
                 <Select items={STAGE_ITEMS} value={stage} onValueChange={(v) => setStage(v as ContactStage)}>
-                  <SelectTrigger id="nc-stage" className="h-11 text-base">
+                  <SelectTrigger id="nc-stage" className="h-9">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -244,11 +244,11 @@ export function NewContactDialog({ defaultStage }: { defaultStage?: ContactStage
               </div>
             </div>
           </div>
-          <DialogFooter className="px-8 py-5 border-t">
-            <Button type="button" variant="outline" size="lg" onClick={() => setOpen(false)}>
+          <DialogFooter className="px-6 py-4 border-t">
+            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
               Annuler
             </Button>
-            <Button type="submit" size="lg" disabled={loading || !prenom.trim() || !nom.trim()}>
+            <Button type="submit" disabled={loading || !prenom.trim() || !nom.trim()}>
               {loading ? "Création…" : "Créer le contact"}
             </Button>
           </DialogFooter>
