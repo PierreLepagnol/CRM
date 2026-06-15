@@ -30,6 +30,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 import { AppShell } from "@/components/app-shell";
+import { MarkdownEditor } from "@/components/markdown-editor";
 import { MarkdownViewer } from "@/components/markdown-viewer";
 import {
   EntrepriseCombobox,
@@ -94,6 +95,7 @@ function ContactDetail({ id }: { id: Id<"contacts"> }) {
   const [interType, setInterType] = useState<InteractionType>("email");
   const [interDate, setInterDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [interResume, setInterResume] = useState("");
+  const [interEditorKey, setInterEditorKey] = useState(0);
   const [interLoading, setInterLoading] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
@@ -188,6 +190,7 @@ function ContactDetail({ id }: { id: Id<"contacts"> }) {
         resume: interResume.trim(),
       });
       setInterResume("");
+      setInterEditorKey((k) => k + 1);
       toast.success("Échange ajouté.");
     } catch {
       toast.error("Échec de l'ajout.");
@@ -453,12 +456,10 @@ function ContactDetail({ id }: { id: Id<"contacts"> }) {
             </div>
           </div>
           <div className="mb-3 flex flex-col gap-1.5">
-            <Label htmlFor="inter-resume">Résumé</Label>
-            <Textarea
-              id="inter-resume"
-              rows={2}
-              value={interResume}
-              onChange={(e) => setInterResume(e.target.value)}
+            <Label>Résumé</Label>
+            <MarkdownEditor
+              key={interEditorKey}
+              onChange={setInterResume}
               placeholder="Résumé de l'échange…"
             />
           </div>
