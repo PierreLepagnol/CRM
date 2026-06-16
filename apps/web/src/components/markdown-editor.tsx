@@ -9,7 +9,6 @@ import { RichTextPlugin } from "@lexical/react/LexicalRichTextPlugin";
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
 import { ListNode, ListItemNode } from "@lexical/list";
 import { HeadingNode } from "@lexical/rich-text";
-import { $setBlocksType } from "@lexical/selection";
 import {
   $convertFromMarkdownString,
   $convertToMarkdownString,
@@ -61,9 +60,9 @@ function ToolbarPlugin() {
   const formatHeading = useCallback(() => {
     editor.update(() => {
       const selection = $getSelection();
-      if ($isRangeSelection(selection)) {
-        $setBlocksType(selection, () => $createHeadingNode("h2"));
-      }
+      if (!$isRangeSelection(selection)) return;
+      const element = selection.anchor.getNode().getTopLevelElementOrThrow();
+      element.replace($createHeadingNode("h2"), true);
     });
   }, [editor]);
 
