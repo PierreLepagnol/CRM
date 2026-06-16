@@ -100,9 +100,10 @@ contact). Le type `linkedin` désigne un *échange via LinkedIn* (un événement
 à distinguer du **Profil LinkedIn**, qui est une coordonnée du Contact.
 
 Le **résumé** est une chaîne de texte libre qui s'affiche rendue en **Markdown**
-(gras, italique, listes). L'éditeur sera à terme un composant Lexical ; en
-attendant, la saisie reste un `<Textarea>` standard et l'affichage est un
-lecteur Lexical en mode lecture seule.
+(gras, italique, listes). La saisie et l'édition utilisent un composant Lexical
+(`MarkdownEditor`) ; l'affichage est un lecteur Lexical en mode lecture seule
+(`MarkdownViewer`). Le résumé est le seul champ d'une Interaction qui peut être
+modifié après création.
 
 ## Relance
 

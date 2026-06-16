@@ -40,6 +40,15 @@ export const create = mutation({
   },
 });
 
+export const update = mutation({
+  args: { id: v.id("interactions"), resume: v.string() },
+  handler: async (ctx, args) => {
+    await requireUserId(ctx);
+    await ctx.db.patch(args.id, { resume: args.resume });
+    return null;
+  },
+});
+
 export const remove = mutation({
   args: { id: v.id("interactions") },
   handler: async (ctx, args) => {
