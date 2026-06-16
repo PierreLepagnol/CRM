@@ -5,6 +5,7 @@ import { ContentEditable } from "@lexical/react/LexicalContentEditable";
 import { ListPlugin } from "@lexical/react/LexicalListPlugin";
 import { RichTextPlugin } from "@lexical/react/LexicalRichTextPlugin";
 import { ListNode, ListItemNode } from "@lexical/list";
+import { HeadingNode } from "@lexical/rich-text";
 import {
   $convertFromMarkdownString,
   BOLD_ITALIC_STAR,
@@ -15,6 +16,7 @@ import {
   ITALIC_UNDERSCORE,
   UNORDERED_LIST,
   ORDERED_LIST,
+  HEADING,
 } from "@lexical/markdown";
 import { Component, type ReactElement } from "react";
 
@@ -29,6 +31,7 @@ class ErrorBoundary extends Component<
 }
 
 const MD_TRANSFORMERS = [
+  HEADING,
   BOLD_ITALIC_STAR,
   BOLD_ITALIC_UNDERSCORE,
   BOLD_STAR,
@@ -45,7 +48,7 @@ export function MarkdownViewer({ content }: { content: string }) {
       initialConfig={{
         namespace: "MarkdownViewer",
         editable: false,
-        nodes: [ListNode, ListItemNode],
+        nodes: [ListNode, ListItemNode, HeadingNode],
         editorState: () => $convertFromMarkdownString(content, MD_TRANSFORMERS),
         onError: console.error,
         theme: {},
