@@ -8,6 +8,7 @@ import { OnChangePlugin } from "@lexical/react/LexicalOnChangePlugin";
 import { RichTextPlugin } from "@lexical/react/LexicalRichTextPlugin";
 import { ListNode, ListItemNode } from "@lexical/list";
 import {
+  $convertFromMarkdownString,
   $convertToMarkdownString,
   BOLD_ITALIC_STAR,
   BOLD_ITALIC_UNDERSCORE,
@@ -45,9 +46,11 @@ class ErrorBoundary extends Component<
 export function MarkdownEditor({
   onChange,
   placeholder,
+  initialValue,
 }: {
   onChange: (value: string) => void;
   placeholder?: string;
+  initialValue?: string;
 }) {
   return (
     <LexicalComposer
@@ -57,6 +60,9 @@ export function MarkdownEditor({
         nodes: [ListNode, ListItemNode],
         onError: console.error,
         theme: {},
+        editorState: initialValue
+          ? () => $convertFromMarkdownString(initialValue, MD_TRANSFORMERS)
+          : undefined,
       }}
     >
       <div className="relative">

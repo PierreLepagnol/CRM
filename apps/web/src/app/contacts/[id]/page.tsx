@@ -23,7 +23,7 @@ import { Skeleton } from "@CRM-APP/ui/components/skeleton";
 import { Textarea } from "@CRM-APP/ui/components/textarea";
 import { cn } from "@CRM-APP/ui/lib/utils";
 import { Authenticated, useMutation, useQuery } from "convex/react";
-import { ArrowLeft, Bell, BellOff, Euro, ExternalLink, Mail, Phone, Plus, Trash2, X } from "lucide-react";
+import { ArrowLeft, Bell, BellOff, Euro, ExternalLink, Mail, Pencil, Phone, Plus, Trash2, X } from "lucide-react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
@@ -74,6 +74,7 @@ function ContactDetail({ id }: { id: Id<"contacts"> }) {
   const detachEntreprise = useMutation(api.entreprises.detachContact);
   const createInteraction = useMutation(api.interactions.create);
   const deleteInteraction = useMutation(api.interactions.remove);
+  const updateInteraction = useMutation(api.interactions.update);
   const router = useRouter();
 
   const [draftContactId, setDraftContactId] = useState<Id<"contacts"> | null>(null);
@@ -98,6 +99,8 @@ function ContactDetail({ id }: { id: Id<"contacts"> }) {
   const [interEditorKey, setInterEditorKey] = useState(0);
   const [interLoading, setInterLoading] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [editingId, setEditingId] = useState<Id<"interactions"> | null>(null);
+  const [editResume, setEditResume] = useState("");
 
   if (contact && contact._id !== draftContactId) {
     setDraftContactId(contact._id);
@@ -481,6 +484,7 @@ function ContactDetail({ id }: { id: Id<"contacts"> }) {
             {interactions.map((inter) => {
               const TypeIcon = interactionIcon(inter.type);
               const author = resolveUser(inter.created_by, users);
+              const isEditing = editingId === inter._id;
               return (
                 <li key={inter._id} className="flex items-start gap-3 px-4 py-3">
                   <TypeIcon className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
@@ -501,19 +505,56 @@ function ContactDetail({ id }: { id: Id<"contacts"> }) {
                           </span>
                         )}
                       </span>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="size-6 shrink-0 text-muted-foreground hover:text-destructive"
-                        onClick={async () => {
-                          try { await deleteInteraction({ id: inter._id }); }
-                          catch { toast.error("Échec."); }
-                        }}
-                      >
-                        <X className="size-3" />
-                      </Button>
+                      <div className="flex items-center gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="size-6 shrink-0 text-muted-foreground hover:text-foreground"
+                          onClick={() => { setEditingId(inter._id); setEditResume(inter.resume); }}
+                        >
+                          <Pencil className="size-3" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="size-6 shrink-0 text-muted-foreground hover:text-destructive"
+                          onClick={async () => {
+                            try { await deleteInteraction({ id: inter._id }); }
+                            catch { toast.error("Échec."); }
+                          }}
+                        >
+                          <X className="size-3" />
+                        </Button>
+                      </div>
                     </div>
-                    <MarkdownViewer content={inter.resume} />
+                    {isEditing ? (
+                      <div className="mt-2 flex flex-col gap-2">
+                        <MarkdownEditor
+                          key={inter._id}
+                          initialValue={inter.resume}
+                          onChange={setEditResume}
+                        />
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            disabled={!editResume.trim()}
+                            onClick={async () => {
+                              try {
+                                await updateInteraction({ id: inter._id, resume: editResume.trim() });
+                                setEditingId(null);
+                              } catch { toast.error("Échec de la modification."); }
+                            }}
+                          >
+                            Sauvegarder
+                          </Button>
+                          <Button variant="ghost" size="sm" onClick={() => setEditingId(null)}>
+                            Annuler
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <MarkdownViewer content={inter.resume} />
+                    )}
                   </div>
                 </li>
               );

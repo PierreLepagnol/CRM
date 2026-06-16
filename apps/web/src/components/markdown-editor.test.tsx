@@ -13,4 +13,9 @@ describe("MarkdownEditor", () => {
     render(<MarkdownEditor onChange={vi.fn()} />);
     expect(screen.getByRole("textbox")).toHaveAttribute("contenteditable", "true");
   });
+
+  it("pre-fills editor with initialValue text", () => {
+    render(<MarkdownEditor onChange={vi.fn()} initialValue="hello world" />);
+    expect(screen.getByRole("textbox")).toHaveTextContent("hello world");
+  });
 });
