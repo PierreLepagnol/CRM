@@ -23,8 +23,8 @@ import {
   HEADING,
 } from "@lexical/markdown";
 import { Component, useCallback, useEffect, useState, type ReactElement } from "react";
-import { $getSelection, $isRangeSelection, FORMAT_TEXT_COMMAND } from "lexical";
-import { $createHeadingNode } from "@lexical/rich-text";
+import { $createParagraphNode, $getSelection, $isRangeSelection, FORMAT_TEXT_COMMAND } from "lexical";
+import { $createHeadingNode, $isHeadingNode } from "@lexical/rich-text";
 import type { EditorState } from "lexical";
 import { cn } from "@CRM-APP/ui/lib/utils";
 
@@ -44,6 +44,7 @@ function ToolbarPlugin() {
   const [editor] = useLexicalComposerContext();
   const [isBold, setIsBold] = useState(false);
   const [isItalic, setIsItalic] = useState(false);
+  const [isHeading, setIsHeading] = useState(false);
 
   useEffect(() => {
     return editor.registerUpdateListener(({ editorState }) => {
@@ -52,6 +53,7 @@ function ToolbarPlugin() {
         if ($isRangeSelection(selection)) {
           setIsBold(selection.hasFormat("bold"));
           setIsItalic(selection.hasFormat("italic"));
+          setIsHeading($isHeadingNode(selection.anchor.getNode().getTopLevelElement()));
         }
       });
     });
@@ -62,7 +64,10 @@ function ToolbarPlugin() {
       const selection = $getSelection();
       if (!$isRangeSelection(selection)) return;
       const element = selection.anchor.getNode().getTopLevelElementOrThrow();
-      element.replace($createHeadingNode("h2"), true);
+      element.replace(
+        $isHeadingNode(element) ? $createParagraphNode() : $createHeadingNode("h2"),
+        true,
+      );
     });
   }, [editor]);
 
@@ -85,7 +90,7 @@ function ToolbarPlugin() {
       <button
         type="button"
         onMouseDown={(e) => { e.preventDefault(); formatHeading(); }}
-        className="rounded px-2 py-0.5 text-sm font-bold hover:bg-accent"
+        className={cn("rounded px-2 py-0.5 text-sm font-bold hover:bg-accent", isHeading && "bg-accent")}
       >
         H
       </button>
