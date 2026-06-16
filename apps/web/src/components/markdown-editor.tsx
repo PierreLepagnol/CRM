@@ -6,7 +6,10 @@ import { HistoryPlugin } from "@lexical/react/LexicalHistoryPlugin";
 import { ListPlugin } from "@lexical/react/LexicalListPlugin";
 import { OnChangePlugin } from "@lexical/react/LexicalOnChangePlugin";
 import { RichTextPlugin } from "@lexical/react/LexicalRichTextPlugin";
+import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
 import { ListNode, ListItemNode } from "@lexical/list";
+import { HeadingNode } from "@lexical/rich-text";
+import { $setBlocksType } from "@lexical/selection";
 import {
   $convertFromMarkdownString,
   $convertToMarkdownString,
@@ -18,11 +21,16 @@ import {
   ITALIC_UNDERSCORE,
   UNORDERED_LIST,
   ORDERED_LIST,
+  HEADING,
 } from "@lexical/markdown";
-import { Component, type ReactElement } from "react";
+import { Component, useCallback, useEffect, useState, type ReactElement } from "react";
+import { $getSelection, $isRangeSelection, FORMAT_TEXT_COMMAND } from "lexical";
+import { $createHeadingNode } from "@lexical/rich-text";
 import type { EditorState } from "lexical";
+import { cn } from "@CRM-APP/ui/lib/utils";
 
 const MD_TRANSFORMERS = [
+  HEADING,
   BOLD_ITALIC_STAR,
   BOLD_ITALIC_UNDERSCORE,
   BOLD_STAR,
@@ -32,6 +40,59 @@ const MD_TRANSFORMERS = [
   UNORDERED_LIST,
   ORDERED_LIST,
 ];
+
+function ToolbarPlugin() {
+  const [editor] = useLexicalComposerContext();
+  const [isBold, setIsBold] = useState(false);
+  const [isItalic, setIsItalic] = useState(false);
+
+  useEffect(() => {
+    return editor.registerUpdateListener(({ editorState }) => {
+      editorState.read(() => {
+        const selection = $getSelection();
+        if ($isRangeSelection(selection)) {
+          setIsBold(selection.hasFormat("bold"));
+          setIsItalic(selection.hasFormat("italic"));
+        }
+      });
+    });
+  }, [editor]);
+
+  const formatHeading = useCallback(() => {
+    editor.update(() => {
+      const selection = $getSelection();
+      if ($isRangeSelection(selection)) {
+        $setBlocksType(selection, () => $createHeadingNode("h2"));
+      }
+    });
+  }, [editor]);
+
+  return (
+    <div className="flex gap-1 border-b border-input bg-muted/50 px-2 py-1">
+      <button
+        type="button"
+        onMouseDown={(e) => { e.preventDefault(); editor.dispatchCommand(FORMAT_TEXT_COMMAND, "bold"); }}
+        className={cn("rounded px-2 py-0.5 text-sm font-bold hover:bg-accent", isBold && "bg-accent")}
+      >
+        B
+      </button>
+      <button
+        type="button"
+        onMouseDown={(e) => { e.preventDefault(); editor.dispatchCommand(FORMAT_TEXT_COMMAND, "italic"); }}
+        className={cn("rounded px-2 py-0.5 text-sm italic hover:bg-accent", isItalic && "bg-accent")}
+      >
+        I
+      </button>
+      <button
+        type="button"
+        onMouseDown={(e) => { e.preventDefault(); formatHeading(); }}
+        className="rounded px-2 py-0.5 text-sm font-bold hover:bg-accent"
+      >
+        H
+      </button>
+    </div>
+  );
+}
 
 class ErrorBoundary extends Component<
   { children: ReactElement; onError: (e: Error) => void },
@@ -57,7 +118,7 @@ export function MarkdownEditor({
       initialConfig={{
         namespace: "MarkdownEditor",
         editable: true,
-        nodes: [ListNode, ListItemNode],
+        nodes: [ListNode, ListItemNode, HeadingNode],
         onError: console.error,
         theme: {},
         editorState: initialValue
@@ -65,20 +126,23 @@ export function MarkdownEditor({
           : undefined,
       }}
     >
-      <div className="relative">
-        <RichTextPlugin
-          contentEditable={
-            <ContentEditable className="markdown-viewer min-h-[4.5rem] w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ring-offset-background" />
-          }
-          placeholder={
-            placeholder ? (
-              <div className="pointer-events-none absolute left-3 top-2 text-sm text-muted-foreground">
-                {placeholder}
-              </div>
-            ) : null
-          }
-          ErrorBoundary={ErrorBoundary}
-        />
+      <div className="rounded-md border border-input ring-offset-background focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2">
+        <ToolbarPlugin />
+        <div className="relative">
+          <RichTextPlugin
+            contentEditable={
+              <ContentEditable className="markdown-viewer min-h-[4.5rem] w-full bg-background px-3 py-2 text-sm focus-visible:outline-none" />
+            }
+            placeholder={
+              placeholder ? (
+                <div className="pointer-events-none absolute left-3 top-2 text-sm text-muted-foreground">
+                  {placeholder}
+                </div>
+              ) : null
+            }
+            ErrorBoundary={ErrorBoundary}
+          />
+        </div>
       </div>
       <ListPlugin />
       <HistoryPlugin />
