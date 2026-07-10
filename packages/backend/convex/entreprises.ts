@@ -12,11 +12,10 @@ import {
 import { requireUserId } from "./lib/auth";
 import {
   assertEntrepriseDeletable,
-  matchesPrefix,
   normalizeEntrepriseName,
   resolveMergedNotes,
 } from "./lib/entrepriseLogic";
-import { secteurEntreprise } from "./lib/validators";
+import { LIST_CAP, secteurEntreprise } from "./lib/validators";
 
 /** Contacts non supprimés rattachés à une entreprise. */
 async function attachedContacts(
@@ -25,9 +24,11 @@ async function attachedContacts(
 ): Promise<Doc<"contacts">[]> {
   const rows = await ctx.db
     .query("contacts")
-    .withIndex("by_entreprise", (q) => q.eq("entreprise_id", entrepriseId))
-    .collect();
-  return rows.filter((c) => c.deleted_at === undefined);
+    .withIndex("by_active_entreprise", (q) =>
+      q.eq("deleted_at", undefined).eq("entreprise_id", entrepriseId),
+    )
+    .take(LIST_CAP);
+  return rows;
 }
 
 /** Trouve une entreprise non supprimée par nom normalisé (garde-fou anti-doublon). */
@@ -35,11 +36,13 @@ async function findByNormalizedName(
   ctx: QueryCtx | MutationCtx,
   norm: string,
 ): Promise<Doc<"entreprises"> | null> {
-  const rows = await ctx.db
+  const row = await ctx.db
     .query("entreprises")
-    .withIndex("by_nom_normalise", (q) => q.eq("nom_normalise", norm))
-    .collect();
-  return rows.find((e) => e.deleted_at === undefined) ?? null;
+    .withIndex("by_active_nom_normalise", (q) =>
+      q.eq("deleted_at", undefined).eq("nom_normalise", norm),
+    )
+    .first();
+  return row ?? null;
 }
 
 /** Liste des entreprises avec stats calculées (nb de contacts, montant total). */
@@ -47,11 +50,15 @@ export const list = query({
   args: {},
   handler: async (ctx) => {
     await requirePageAccess(ctx, "entreprises");
-    const entreprises = (
-      await ctx.db.query("entreprises").withIndex("by_updated_at").order("desc").collect()
-    ).filter((e) => e.deleted_at === undefined);
+    const entreprises = await ctx.db
+      .query("entreprises")
+      .withIndex("by_active_updated", (q) => q.eq("deleted_at", undefined))
+      .order("desc")
+      .take(LIST_CAP);
 
-    const contacts = (await ctx.db.query("contacts").collect()).filter(
+    // ponytail: scan borné pour agréger les stats par entreprise. Dénormaliser
+    // contactCount/montantTotal sur `entreprises` si le volume l'exige.
+    const contacts = (await ctx.db.query("contacts").take(LIST_CAP)).filter(
       (c) => c.deleted_at === undefined && c.entreprise_id,
     );
     const counts = new Map<string, { nb: number; montant: number }>();
@@ -76,12 +83,20 @@ export const searchByPrefix = query({
   args: { q: v.string() },
   handler: async (ctx, args) => {
     if (!(await guardContactRead(ctx))) return [];
-    if (!args.q.trim()) return [];
-    const all = (await ctx.db.query("entreprises").collect()).filter(
-      (e) => e.deleted_at === undefined,
-    );
-    return all
-      .filter((e) => matchesPrefix(args.q, e.nom))
+    const norm = normalizeEntrepriseName(args.q);
+    if (!norm) return [];
+    // Range scan sur l'index du nom normalisé (équivalent à matchesPrefix,
+    // cf. lib/entrepriseLogic) au lieu d'un scan complet de la table.
+    const rows = await ctx.db
+      .query("entreprises")
+      .withIndex("by_active_nom_normalise", (q) =>
+        q
+          .eq("deleted_at", undefined)
+          .gte("nom_normalise", norm)
+          .lt("nom_normalise", norm + "￿"),
+      )
+      .take(20);
+    return rows
       .sort((a, b) => a.nom.localeCompare(b.nom, "fr"))
       .slice(0, 10)
       .map((e) => ({ _id: e._id, nom: e.nom }));
@@ -93,6 +108,8 @@ export const byIds = query({
   args: { ids: v.array(v.id("entreprises")) },
   handler: async (ctx, args) => {
     if (!(await guardContactRead(ctx))) return [];
+    if (args.ids.length > LIST_CAP)
+      throw new ConvexError(`Trop d'identifiants (max ${LIST_CAP}).`);
     const rows = await Promise.all(args.ids.map((id) => ctx.db.get(id)));
     return rows
       .filter((e): e is Doc<"entreprises"> => e !== null && e.deleted_at === undefined)
@@ -178,11 +195,13 @@ export const update = mutation({
       throw new ConvexError("Entreprise introuvable");
 
     const dbPatch: Partial<Doc<"entreprises">> = { updated_at: Date.now() };
+    let renamedTo: string | undefined;
     if (args.patch.nom !== undefined) {
       const nom = args.patch.nom.trim();
       if (!nom) throw new ConvexError("Le nom de l'entreprise est requis.");
       dbPatch.nom = nom;
       dbPatch.nom_normalise = normalizeEntrepriseName(nom);
+      if (nom !== existing.nom) renamedTo = nom;
     }
     if (args.patch.secteur !== undefined)
       dbPatch.secteur = args.patch.secteur ?? undefined;
@@ -192,6 +211,14 @@ export const update = mutation({
       dbPatch.notes_md = args.patch.notes_md.trim() || undefined;
 
     await ctx.db.patch(args.id, dbPatch);
+    // Propage le renommage au nom dénormalisé des contacts rattachés (indexé
+    // pour la recherche). Borné par le nombre de contacts de l'entreprise.
+    if (renamedTo !== undefined) {
+      const now = Date.now();
+      for (const c of await attachedContacts(ctx, args.id)) {
+        await ctx.db.patch(c._id, { entreprise_nom: renamedTo, updated_at: now });
+      }
+    }
     return null;
   },
 });
@@ -209,6 +236,7 @@ export const attachContact = mutation({
       throw new ConvexError("Entreprise introuvable");
     await ctx.db.patch(args.contact_id, {
       entreprise_id: args.entreprise_id,
+      entreprise_nom: entreprise.nom,
       updated_at: Date.now(),
     });
     return null;
@@ -225,6 +253,7 @@ export const detachContact = mutation({
       throw new ConvexError("Contact introuvable");
     await ctx.db.patch(args.contact_id, {
       entreprise_id: undefined,
+      entreprise_nom: undefined,
       updated_at: Date.now(),
     });
     return null;
@@ -252,7 +281,11 @@ export const merge = mutation({
     const toMove = await attachedContacts(ctx, args.absorbedId);
     const now = Date.now();
     for (const c of toMove) {
-      await ctx.db.patch(c._id, { entreprise_id: args.survivorId, updated_at: now });
+      await ctx.db.patch(c._id, {
+        entreprise_id: args.survivorId,
+        entreprise_nom: survivor.nom,
+        updated_at: now,
+      });
     }
     await ctx.db.patch(args.survivorId, {
       notes_md: resolveMergedNotes(survivor.notes_md, absorbed.notes_md),
@@ -272,11 +305,7 @@ export const remove = mutation({
     if (!existing || existing.deleted_at !== undefined)
       throw new ConvexError("Entreprise introuvable");
     const attached = await attachedContacts(ctx, args.id);
-    try {
-      assertEntrepriseDeletable(attached.length);
-    } catch (e) {
-      throw new ConvexError((e as Error).message);
-    }
+    assertEntrepriseDeletable(attached.length);
     await ctx.db.patch(args.id, { deleted_at: Date.now(), updated_at: Date.now() });
     return null;
   },

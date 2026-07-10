@@ -21,6 +21,7 @@ import type * as lib_auth from "../lib/auth.js";
 import type * as lib_contactPatch from "../lib/contactPatch.js";
 import type * as lib_entrepriseLogic from "../lib/entrepriseLogic.js";
 import type * as lib_importLogic from "../lib/importLogic.js";
+import type * as lib_position from "../lib/position.js";
 import type * as lib_validators from "../lib/validators.js";
 import type * as migrations from "../migrations.js";
 import type * as projects from "../projects.js";
@@ -47,6 +48,7 @@ declare const fullApi: ApiFromModules<{
   "lib/contactPatch": typeof lib_contactPatch;
   "lib/entrepriseLogic": typeof lib_entrepriseLogic;
   "lib/importLogic": typeof lib_importLogic;
+  "lib/position": typeof lib_position;
   "lib/validators": typeof lib_validators;
   migrations: typeof migrations;
   projects: typeof projects;

@@ -12,6 +12,7 @@ import {
 } from "./lib/accessLogic";
 import {
   DEFAULT_ROLE_PAGES,
+  LIST_CAP,
   pageKey,
   roleKey,
   type PageKey,
@@ -24,7 +25,8 @@ export const list = query({
   args: {},
   handler: async (ctx) => {
     if (!(await authComponent.safeGetAuthUser(ctx))) return [];
-    const rows = await ctx.db.query("app_users").collect();
+    const rows = await ctx.db.query("app_users").take(LIST_CAP);
+    // Projection volontairement sans `role` : réservé à l'admin (listAll).
     return rows
       .map((u) => ({
         _id: u._id,
@@ -32,7 +34,6 @@ export const list = query({
         name: u.name,
         email: u.email,
         image: u.image,
-        role: u.role,
       }))
       .sort((a, b) => a.name.localeCompare(b.name, "fr"));
   },
@@ -67,14 +68,25 @@ export const listAll = query({
   args: {},
   handler: async (ctx) => {
     await requireAdmin(ctx);
-    const { page } = await ctx.runQuery(components.betterAuth.adapter.findMany, {
-      model: "user",
-      where: [],
-      paginationOpts: { numItems: 1000, cursor: null },
-    });
-    const appUsers = await ctx.db.query("app_users").collect();
+    // Boucle sur le curseur : sinon `numItems` tronque silencieusement au-delà
+    // de la première page (cf. audit #21).
+    type AuthUserRow = { _id: string; name?: string; email?: string; image?: string };
+    const page: AuthUserRow[] = [];
+    let cursor: string | null = null;
+    for (let guard = 0; guard < 100; guard++) {
+      const res: { page: AuthUserRow[]; isDone: boolean; continueCursor: string } =
+        await ctx.runQuery(components.betterAuth.adapter.findMany, {
+          model: "user",
+          where: [],
+          paginationOpts: { numItems: 500, cursor },
+        });
+      page.push(...res.page);
+      if (res.isDone) break;
+      cursor = res.continueCursor;
+    }
+    const appUsers = await ctx.db.query("app_users").take(LIST_CAP);
     return mergeAuthUsersWithRoles(
-      page as { _id: string; name?: string; email?: string; image?: string }[],
+      page,
       appUsers.map((u) => ({
         user_id: u.user_id,
         role: u.role as RoleKey,
@@ -99,7 +111,7 @@ export const setRoleByUserId = mutation({
       .query("app_users")
       .withIndex("by_user_id", (q) => q.eq("user_id", args.user_id))
       .first();
-    const allUsers = await ctx.db.query("app_users").collect();
+    const allUsers = await ctx.db.query("app_users").take(LIST_CAP);
     const adminCount = allUsers.filter((u) => u.role === "admin").length;
 
     if (existing) {

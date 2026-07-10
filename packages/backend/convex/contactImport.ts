@@ -2,9 +2,11 @@ import { ConvexError, v } from "convex/values";
 
 import type { Doc, Id } from "./_generated/dataModel";
 import { mutation, query } from "./_generated/server";
-import type { MutationCtx } from "./_generated/server";
+import type { MutationCtx, QueryCtx } from "./_generated/server";
 import { requireContactWrite } from "./access";
+import { getMaxPosition, resolveEntrepriseNom } from "./contacts";
 import { normalizeEntrepriseName } from "./lib/entrepriseLogic";
+import { LIST_CAP } from "./lib/validators";
 import {
   buildClassifyContext,
   buildEnrichmentPatch,
@@ -64,17 +66,22 @@ const entrepriseResolutionValidator = v.object({
 });
 
 /** Charge les index de rapprochement depuis la base (contacts + entreprises non supprimés). */
-async function loadClassifyContext(ctx: MutationCtx): Promise<ClassifyContext> {
-  const contacts = (await ctx.db.query("contacts").collect()).filter(
+async function loadClassifyContext(
+  ctx: QueryCtx | MutationCtx,
+): Promise<{ contacts: Doc<"contacts">[]; context: ClassifyContext }> {
+  const contacts = (await ctx.db.query("contacts").take(LIST_CAP)).filter(
     (c) => c.deleted_at === undefined,
   );
-  const entreprises = (await ctx.db.query("entreprises").collect()).filter(
+  const entreprises = (await ctx.db.query("entreprises").take(LIST_CAP)).filter(
     (e) => e.deleted_at === undefined,
   );
-  return buildClassifyContext({
-    contacts: contacts.map((c) => ({ id: c._id, email: c.email })),
-    entreprises: entreprises.map((e) => ({ id: e._id, nom: e.nom })),
-  });
+  return {
+    contacts,
+    context: buildClassifyContext({
+      contacts: contacts.map((c) => ({ id: c._id, email: c.email })),
+      entreprises: entreprises.map((e) => ({ id: e._id, nom: e.nom })),
+    }),
+  };
 }
 
 /**
@@ -90,16 +97,7 @@ export const classify = query({
     if (args.rows.length > MAX_IMPORT_ROWS)
       throw new ConvexError(`Fichier trop volumineux (max ${MAX_IMPORT_ROWS} lignes).`);
 
-    const contacts = (await ctx.db.query("contacts").collect()).filter(
-      (c) => c.deleted_at === undefined,
-    );
-    const entreprises = (await ctx.db.query("entreprises").collect()).filter(
-      (e) => e.deleted_at === undefined,
-    );
-    const context = buildClassifyContext({
-      contacts: contacts.map((c) => ({ id: c._id, email: c.email })),
-      entreprises: entreprises.map((e) => ({ id: e._id, nom: e.nom })),
-    });
+    const { contacts, context } = await loadClassifyContext(ctx);
     const byId = new Map(contacts.map((c) => [c._id as string, c]));
 
     const { rows, warnings } = collapseByEmail(args.rows as ImportRowInput[]);
@@ -149,11 +147,13 @@ async function findEntrepriseByName(
   ctx: MutationCtx,
   norm: string,
 ): Promise<Id<"entreprises"> | null> {
-  const rows = await ctx.db
+  const row = await ctx.db
     .query("entreprises")
-    .withIndex("by_nom_normalise", (q) => q.eq("nom_normalise", norm))
-    .collect();
-  return rows.find((e) => e.deleted_at === undefined)?._id ?? null;
+    .withIndex("by_active_nom_normalise", (q) =>
+      q.eq("deleted_at", undefined).eq("nom_normalise", norm),
+    )
+    .first();
+  return row?._id ?? null;
 }
 
 /**
@@ -176,7 +176,7 @@ export const commit = mutation({
     if (args.rows.length > MAX_IMPORT_ROWS)
       throw new ConvexError(`Fichier trop volumineux (max ${MAX_IMPORT_ROWS} lignes).`);
 
-    const context = await loadClassifyContext(ctx);
+    const { context } = await loadClassifyContext(ctx);
     const { rows } = collapseByEmail(args.rows as ImportRowInput[]);
     const strategies = (args.fieldStrategies ?? {}) as FieldStrategies;
     const rejected = new Set(args.rejectedIndexes ?? []);
@@ -230,7 +230,7 @@ export const commit = mutation({
     const errors: string[] = [];
 
     // Position de départ pour les nouveaux Prospects (colonne `nouveau`).
-    let nextPosition = await getMaxNouveauPosition(ctx);
+    let nextPosition = await getMaxPosition(ctx, "nouveau");
 
     for (let i = 0; i < rows.length; i++) {
       if (rejected.has(i)) {
@@ -268,9 +268,15 @@ export const commit = mutation({
           entrepriseId,
         );
         if (Object.keys(patch).length > 0) {
+          const nextEntrepriseId = patch.entreprise_id as Id<"entreprises"> | undefined;
           await ctx.db.patch(existing._id, {
             ...patch,
-            entreprise_id: patch.entreprise_id as Id<"entreprises"> | undefined,
+            entreprise_id: nextEntrepriseId,
+            // Resynchronise le nom dénormalisé si l'enrichissement a (re)lié une
+            // entreprise (buildEnrichmentPatch n'émet entreprise_id que si changé).
+            ...("entreprise_id" in patch
+              ? { entreprise_nom: await resolveEntrepriseNom(ctx, nextEntrepriseId) }
+              : {}),
             updated_at: now,
           });
           enriched += 1;
@@ -288,16 +294,6 @@ export const commit = mutation({
     return { created, enriched, unchanged, skipped, errors };
   },
 });
-
-async function getMaxNouveauPosition(ctx: MutationCtx): Promise<number> {
-  const last = await ctx.db
-    .query("contacts")
-    .withIndex("by_stage_and_position", (q) => q.eq("stage", "nouveau"))
-    .order("desc")
-    .filter((q) => q.eq(q.field("deleted_at"), undefined))
-    .first();
-  return last ? last.position + 1 : 0;
-}
 
 async function insertProspect(
   ctx: MutationCtx,
@@ -326,6 +322,7 @@ async function insertProspect(
     montant: values.montant,
     notes_md: values.notes,
     entreprise_id: entrepriseId,
+    entreprise_nom: await resolveEntrepriseNom(ctx, entrepriseId),
     owner_id: userId,
     stage: "nouveau",
     position,
