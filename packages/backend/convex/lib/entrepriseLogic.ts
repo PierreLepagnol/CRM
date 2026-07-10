@@ -1,3 +1,5 @@
+import { ConvexError } from "convex/values";
+
 /**
  * Logique de domaine pure pour les Entreprises (sans dépendance Convex /
  * better-auth), donc testable directement. Les fonctions Convex (`entreprises.ts`,
@@ -58,6 +60,6 @@ export const ENTREPRISE_HAS_CONTACTS_ERROR =
  */
 export function assertEntrepriseDeletable(attachedContactCount: number): void {
   if (attachedContactCount > 0) {
-    throw new Error(ENTREPRISE_HAS_CONTACTS_ERROR);
+    throw new ConvexError(ENTREPRISE_HAS_CONTACTS_ERROR);
   }
 }

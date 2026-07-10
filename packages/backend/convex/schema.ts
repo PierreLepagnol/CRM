@@ -48,8 +48,8 @@ export default defineSchema({
     updated_at: timestampMs,
     deleted_at: v.optional(timestampMs),
   })
-    .index("by_nom_normalise", ["nom_normalise"])
-    .index("by_updated_at", ["updated_at"])
+    .index("by_active_nom_normalise", ["deleted_at", "nom_normalise"])
+    .index("by_active_updated", ["deleted_at", "updated_at"])
     .searchIndex("search_nom", { searchField: "nom" }),
 
   contacts: defineTable({
@@ -57,6 +57,10 @@ export default defineSchema({
     nom: v.string(),
     entreprise: v.optional(v.string()), // legacy: texte libre, remplacé par entreprise_id
     entreprise_id: v.optional(v.id("entreprises")),
+    // Nom de l'Entreprise liée, dénormalisé pour la recherche plein-texte (les
+    // contacts migrés n'ont que `entreprise_id`). Synchronisé sur chaque
+    // écriture qui touche `entreprise_id` et sur le renommage d'entreprise.
+    entreprise_nom: v.optional(v.string()),
     montant: v.optional(v.number()),
     email: v.optional(v.string()),
     telephone: v.optional(v.string()),
@@ -73,13 +77,16 @@ export default defineSchema({
     updated_at: timestampMs,
     deleted_at: v.optional(timestampMs),
   })
-    .index("by_stage_and_position", ["stage", "position"])
-    .index("by_updated_at", ["updated_at"])
-    .index("by_next_relance_at", ["next_relance_at"])
-    .index("by_entreprise", ["entreprise_id"])
+    // Index « actifs » : `deleted_at` en tête (undefined = non supprimé) pour
+    // exclure les contacts supprimés AU NIVEAU DE L'INDEX (plus de filtre JS ni
+    // de budget `.take()` gaspillé). Cf. audit #16 / guideline soft-delete.
+    .index("by_active_stage_position", ["deleted_at", "stage", "position"])
+    .index("by_active_updated", ["deleted_at", "updated_at"])
+    .index("by_active_next_relance", ["deleted_at", "next_relance_at"])
+    .index("by_active_entreprise", ["deleted_at", "entreprise_id"])
     .searchIndex("search_nom", { searchField: "nom", filterFields: ["stage"] })
     .searchIndex("search_prenom", { searchField: "prenom" })
-    .searchIndex("search_entreprise", { searchField: "entreprise" }),
+    .searchIndex("search_entreprise", { searchField: "entreprise_nom" }),
 
   interactions: defineTable({
     contact_id: v.id("contacts"),
@@ -105,6 +112,6 @@ export default defineSchema({
     updated_at: timestampMs,
     deleted_at: v.optional(timestampMs),
   })
-    .index("by_statut_and_position", ["statut", "position"])
-    .index("by_updated_at", ["updated_at"]),
+    .index("by_active_statut_position", ["deleted_at", "statut", "position"])
+    .index("by_active_updated", ["deleted_at", "updated_at"]),
 });

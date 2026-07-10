@@ -111,6 +111,21 @@ modifié après création.
 date donnée. Créée soit manuellement, soit automatiquement quand on renseigne une
 date de relance sur un contact. Son auteur est l'utilisateur qui l'a saisie.
 
+## Projet (alias : Affaire)
+
+Une **opportunité ou mission** suivie dans le CRM, indépendante d'un contact
+unique. Entité de premier ordre avec un titre, un type (`interne` ou `mission`),
+un statut de kanban (`a_demarrer`, `en_cours`, `en_revision`, `termine`), un
+montant et des dates. Peut être rattaché à plusieurs Contacts (voir
+Rattachement-Projet). "Affaire" est un alias informel pour "Projet" — un seul
+terme canonique : **Projet**.
+
+## Rattachement-Projet
+
+Le lien entre un Projet et ses Contacts décideurs. Relation n-n : un Projet peut
+impliquer plusieurs Contacts, un Contact peut apparaître dans plusieurs Projets.
+À distinguer du Rattachement Contact–Entreprise (qui est 1-n).
+
 ## Contact SCIAM (hérité)
 
 Ancien champ **texte libre** (ex. « Maurin », « Bruno ») désignant informellement

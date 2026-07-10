@@ -7,6 +7,9 @@ import {
   canAccessPage,
   canReadContacts,
   canWriteContacts,
+  decideContactRead,
+  decideContactWrite,
+  decidePageAccess,
   matchOwnerByName,
   mergeAuthUsersWithRoles,
   pickBackfillOwner,
@@ -50,6 +53,37 @@ describe("canAccessPage", () => {
 
   it("allows a page in the role's allowed set", () => {
     expect(canAccessPage("commercial", "contacts", [])).toBe(true);
+  });
+});
+
+describe("guard decisions (policy séparée de l'effet throw/return)", () => {
+  it("null role ⇒ unauthenticated (fail-closed, phase de chargement)", () => {
+    expect(decideContactRead(null, [])).toBe("unauthenticated");
+    expect(decideContactWrite(null, [])).toBe("unauthenticated");
+    expect(decidePageAccess(null, "admin", [])).toBe("unauthenticated");
+  });
+
+  it("lecteur : lit les contacts (allowed) mais n'écrit pas (denied)", () => {
+    expect(decideContactRead("lecteur", [])).toBe("allowed");
+    expect(decideContactWrite("lecteur", [])).toBe("denied");
+  });
+
+  it("commercial : écrit les contacts, mais pas d'accès admin", () => {
+    expect(decideContactWrite("commercial", [])).toBe("allowed");
+    expect(decidePageAccess("commercial", "admin", [])).toBe("denied");
+    expect(decidePageAccess("commercial", "projets", [])).toBe("denied");
+  });
+
+  it("admin : tout autorisé", () => {
+    expect(decideContactWrite("admin", [])).toBe("allowed");
+    expect(decidePageAccess("admin", "admin", [])).toBe("allowed");
+    expect(decidePageAccess("admin", "projets", [])).toBe("allowed");
+  });
+
+  it("respecte les permissions personnalisées (row stockée)", () => {
+    const rows = [{ role: "lecteur" as const, pages: ["pipeline" as const, "contacts" as const] }];
+    // permission élargie : lecteur peut désormais écrire les contacts.
+    expect(decideContactWrite("lecteur", rows)).toBe("allowed");
   });
 });
 

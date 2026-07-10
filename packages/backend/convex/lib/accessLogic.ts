@@ -53,6 +53,45 @@ export function canWriteContacts(role: RoleKey, rows: RolePermissionRow[]): bool
   return canAccessPage(role, "contacts", rows);
 }
 
+/**
+ * Décision d'un garde d'accès, séparée de son effet (throw/return) pour être
+ * testable sans Convex ni better-auth. `role === null` ⇒ non authentifié
+ * (phase de chargement). Les fonctions Convex de `access.ts` traduisent
+ * l'`outcome` : `unauthenticated` → repli chargement, `denied` → ConvexError.
+ */
+export type GuardOutcome = "unauthenticated" | "denied" | "allowed";
+
+function decide(
+  role: RoleKey | null,
+  rows: RolePermissionRow[],
+  allowed: (r: RoleKey, rows: RolePermissionRow[]) => boolean,
+): GuardOutcome {
+  if (role === null) return "unauthenticated";
+  return allowed(role, rows) ? "allowed" : "denied";
+}
+
+export function decideContactRead(
+  role: RoleKey | null,
+  rows: RolePermissionRow[],
+): GuardOutcome {
+  return decide(role, rows, canReadContacts);
+}
+
+export function decideContactWrite(
+  role: RoleKey | null,
+  rows: RolePermissionRow[],
+): GuardOutcome {
+  return decide(role, rows, canWriteContacts);
+}
+
+export function decidePageAccess(
+  role: RoleKey | null,
+  page: PageKey,
+  rows: RolePermissionRow[],
+): GuardOutcome {
+  return decide(role, rows, (r, rw) => canAccessPage(r, page, rw));
+}
+
 /** Erreur levée lorsqu'un changement retirerait le dernier administrateur. */
 export const LAST_ADMIN_ERROR =
   "Impossible de retirer le dernier administrateur.";

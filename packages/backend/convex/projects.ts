@@ -4,14 +4,26 @@ import { mutation, query } from "./_generated/server";
 import type { MutationCtx } from "./_generated/server";
 import { hasPageAccess, requirePageAccess } from "./access";
 import { requireUserId } from "./lib/auth";
-import { assertMontant, projectStatut, projectType } from "./lib/validators";
+import type { Doc, Id } from "./_generated/dataModel";
+import { movesFromPlan } from "./lib/position";
+import {
+  assertMontant,
+  assertOptionalTimestampMs,
+  LIST_CAP,
+  projectStatut,
+  projectType,
+} from "./lib/validators";
 
-async function getMaxPosition(ctx: MutationCtx, statut: string): Promise<number> {
+async function getMaxPosition(
+  ctx: MutationCtx,
+  statut: Doc<"projects">["statut"],
+): Promise<number> {
   const row = await ctx.db
     .query("projects")
-    .withIndex("by_statut_and_position", (q) => q.eq("statut", statut as any))
+    .withIndex("by_active_statut_position", (q) =>
+      q.eq("deleted_at", undefined).eq("statut", statut),
+    )
     .order("desc")
-    .filter((q) => q.eq(q.field("deleted_at"), undefined))
     .first();
   return row ? row.position + 1 : 0;
 }
@@ -29,10 +41,10 @@ export const list = query({
     if (!(await guardProjetsRead(ctx))) return [];
     const rows = await ctx.db
       .query("projects")
-      .withIndex("by_updated_at")
+      .withIndex("by_active_updated", (q) => q.eq("deleted_at", undefined))
       .order("desc")
-      .collect();
-    return rows.filter((p) => p.deleted_at === undefined);
+      .take(LIST_CAP);
+    return rows;
   },
 });
 
@@ -42,10 +54,12 @@ export const listByStatut = query({
     if (!(await guardProjetsRead(ctx))) return [];
     const rows = await ctx.db
       .query("projects")
-      .withIndex("by_statut_and_position", (q) => q.eq("statut", args.statut))
+      .withIndex("by_active_statut_position", (q) =>
+        q.eq("deleted_at", undefined).eq("statut", args.statut),
+      )
       .order("asc")
-      .collect();
-    return rows.filter((p) => p.deleted_at === undefined);
+      .take(LIST_CAP);
+    return rows;
   },
 });
 
@@ -91,6 +105,8 @@ export const create = mutation({
     await requirePageAccess(ctx, "projets");
     const userId = await requireUserId(ctx);
     assertMontant(args.montant);
+    assertOptionalTimestampMs(args.date_debut, "date_debut");
+    assertOptionalTimestampMs(args.date_fin_prevue, "date_fin_prevue");
     const position = await getMaxPosition(ctx, args.statut);
     const id = await ctx.db.insert("projects", {
       ...args,
@@ -108,8 +124,10 @@ export const update = mutation({
     await requirePageAccess(ctx, "projets");
     await requireUserId(ctx);
     assertMontant(args.patch.montant);
+    assertOptionalTimestampMs(args.patch.date_debut, "date_debut");
+    assertOptionalTimestampMs(args.patch.date_fin_prevue, "date_fin_prevue");
     const existing = await ctx.db.get(args.id);
-    if (!existing || existing.deleted_at !== undefined) throw new Error("Projet introuvable");
+    if (!existing || existing.deleted_at !== undefined) throw new ConvexError("Projet introuvable");
     const nextPosition =
       args.patch.statut !== undefined && args.patch.statut !== existing.statut
         ? await getMaxPosition(ctx, args.patch.statut)
@@ -133,24 +151,29 @@ export const moveToStatut = mutation({
     await requirePageAccess(ctx, "projets");
     await requireUserId(ctx);
     const project = await ctx.db.get(args.id);
-    if (!project || project.deleted_at !== undefined) throw new Error("Projet introuvable");
+    if (!project || project.deleted_at !== undefined) throw new ConvexError("Projet introuvable");
 
     const colItems = await ctx.db
       .query("projects")
-      .withIndex("by_statut_and_position", (q) => q.eq("statut", args.newStatut))
+      .withIndex("by_active_statut_position", (q) =>
+        q.eq("deleted_at", undefined).eq("statut", args.newStatut),
+      )
       .order("asc")
-      .filter((q) => q.eq(q.field("deleted_at"), undefined))
-      .collect();
+      .take(LIST_CAP);
 
-    const filtered = colItems.filter((p) => p._id !== args.id);
-    const idx = Math.max(0, Math.min(args.targetIndex, filtered.length));
-    filtered.splice(idx, 0, { ...project, statut: args.newStatut });
-
-    await Promise.all(
-      filtered.map((p, i) =>
-        ctx.db.patch(p._id, { statut: args.newStatut, position: i, updated_at: Date.now() }),
-      ),
+    // Indexation fractionnaire : un déplacement = une écriture (cf. lib/position).
+    const others = colItems
+      .filter((p) => p._id !== args.id)
+      .map((p) => ({ id: p._id as string, position: p.position }));
+    const writes = movesFromPlan(
+      others,
+      args.targetIndex,
+      args.id,
+      "statut",
+      args.newStatut,
+      Date.now(),
     );
+    await Promise.all(writes.map((w) => ctx.db.patch(w.id as Id<"projects">, w.patch)));
     return null;
   },
 });
@@ -161,7 +184,7 @@ export const remove = mutation({
     await requirePageAccess(ctx, "projets");
     await requireUserId(ctx);
     const existing = await ctx.db.get(args.id);
-    if (!existing) throw new Error("Projet introuvable");
+    if (!existing) throw new ConvexError("Projet introuvable");
     await ctx.db.patch(args.id, { deleted_at: Date.now(), updated_at: Date.now() });
     return null;
   },

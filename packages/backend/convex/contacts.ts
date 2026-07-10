@@ -1,19 +1,58 @@
-import { v } from "convex/values";
+import { ConvexError, v } from "convex/values";
 
-import type { Id } from "./_generated/dataModel";
+import type { Doc, Id } from "./_generated/dataModel";
 import { mutation, query } from "./_generated/server";
 import type { MutationCtx, QueryCtx } from "./_generated/server";
 import { guardContactRead, requireContactWrite } from "./access";
 import { requireUserId } from "./lib/auth";
 import { toClearableDbPatch } from "./lib/contactPatch";
-import { assertMontant, contactStage } from "./lib/validators";
+import { movesFromPlan } from "./lib/position";
+import { assertMontant, contactStage, LIST_CAP } from "./lib/validators";
 
-async function getMaxPosition(ctx: MutationCtx, stage: string): Promise<number> {
+/**
+ * Vérifie que chaque `user_id` fourni (propriétaire, responsables) correspond à
+ * une ligne `app_users` existante — refus sinon (pas d'attribution à un id
+ * arbitraire). `null`/`undefined` sont ignorés (effacement / champ omis).
+ */
+async function assertUsersExist(
+  ctx: MutationCtx,
+  ids: (string | null | undefined)[],
+): Promise<void> {
+  const unique = [...new Set(ids.filter((id): id is string => Boolean(id)))];
+  for (const id of unique) {
+    const row = await ctx.db
+      .query("app_users")
+      .withIndex("by_user_id", (q) => q.eq("user_id", id))
+      .first();
+    if (!row) throw new ConvexError(`Utilisateur inconnu : ${id}`);
+  }
+}
+
+/**
+ * Nom d'affichage d'une Entreprise liée, pour dénormalisation sur le contact
+ * (`entreprise_nom`, indexé pour la recherche). `undefined` si pas d'entreprise
+ * ou entreprise supprimée. Réutilisé par `contactImport`.
+ */
+export async function resolveEntrepriseNom(
+  ctx: MutationCtx,
+  entrepriseId: Id<"entreprises"> | undefined,
+): Promise<string | undefined> {
+  if (!entrepriseId) return undefined;
+  const e = await ctx.db.get(entrepriseId);
+  return e && e.deleted_at === undefined ? e.nom : undefined;
+}
+
+/** Position suivante en fin de colonne. Réutilisé par `contactImport`. */
+export async function getMaxPosition(
+  ctx: MutationCtx,
+  stage: Doc<"contacts">["stage"],
+): Promise<number> {
   const rows = await ctx.db
     .query("contacts")
-    .withIndex("by_stage_and_position", (q) => q.eq("stage", stage as any))
+    .withIndex("by_active_stage_position", (q) =>
+      q.eq("deleted_at", undefined).eq("stage", stage),
+    )
     .order("desc")
-    .filter((q) => q.eq(q.field("deleted_at"), undefined))
     .first();
   return rows ? rows.position + 1 : 0;
 }
@@ -47,10 +86,10 @@ export const list = query({
     if (!(await guardContactRead(ctx))) return [];
     const rows = await ctx.db
       .query("contacts")
-      .withIndex("by_updated_at")
+      .withIndex("by_active_updated", (q) => q.eq("deleted_at", undefined))
       .order("desc")
-      .collect();
-    return withEntrepriseNom(ctx, rows.filter((c) => c.deleted_at === undefined));
+      .take(LIST_CAP);
+    return withEntrepriseNom(ctx, rows);
   },
 });
 
@@ -60,10 +99,12 @@ export const listByStage = query({
     if (!(await guardContactRead(ctx))) return [];
     const rows = await ctx.db
       .query("contacts")
-      .withIndex("by_stage_and_position", (q) => q.eq("stage", args.stage))
+      .withIndex("by_active_stage_position", (q) =>
+        q.eq("deleted_at", undefined).eq("stage", args.stage),
+      )
       .order("asc")
-      .collect();
-    return withEntrepriseNom(ctx, rows.filter((c) => c.deleted_at === undefined));
+      .take(LIST_CAP);
+    return withEntrepriseNom(ctx, rows);
   },
 });
 
@@ -94,7 +135,7 @@ export const search = query({
       .take(10);
     const byEntreprise = await ctx.db
       .query("contacts")
-      .withSearchIndex("search_entreprise", (q) => q.search("entreprise", args.q))
+      .withSearchIndex("search_entreprise", (q) => q.search("entreprise_nom", args.q))
       .take(10);
     const combined = [...byNom, ...byPrenom, ...byEntreprise].filter(
       (c) => c.deleted_at === undefined,
@@ -111,17 +152,14 @@ export const listDueRelances = query({
   handler: async (ctx) => {
     if (!(await guardContactRead(ctx))) return [];
     const limit = Date.now() + 24 * 60 * 60 * 1000;
+    // Borne d'index (gte(0) exclut les contacts sans relance, triés avant 0)
+    // plutôt qu'un .filter() qui scannerait toute la table.
     const rows = await ctx.db
       .query("contacts")
-      .withIndex("by_next_relance_at")
-      .order("asc")
-      .filter((q) =>
-        q.and(
-          q.neq(q.field("next_relance_at"), undefined),
-          q.lte(q.field("next_relance_at"), limit),
-          q.eq(q.field("deleted_at"), undefined),
-        ),
+      .withIndex("by_active_next_relance", (q) =>
+        q.eq("deleted_at", undefined).gte("next_relance_at", 0).lte("next_relance_at", limit),
       )
+      .order("asc")
       .take(50);
     return rows;
   },
@@ -149,15 +187,19 @@ const contactFields = {
   ...sharedOptionalFields,
 } as const;
 
+// Patch : champs éditables après création. Les champs legacy (`entreprise`
+// texte libre, `contact_sciam`) sont volontairement EXCLUS — le rattachement
+// passe par attachContact/detachContact et le propriétaire par owner_id, pour
+// ne pas laisser réapparaître les données legacy que les backfills éliminent
+// (cf. CONTEXT.md « Contact SCIAM (hérité) », ADR 0001). L'entreprise se change
+// via entreprise_id (attach), jamais par le texte libre ici.
 const contactPatchFields = {
   prenom: v.optional(v.string()),
   nom: v.optional(v.string()),
-  entreprise: v.optional(v.string()),
   email: v.optional(v.string()),
   telephone: v.optional(v.string()),
   linkedin_url: v.optional(v.string()),
   poste: v.optional(v.string()),
-  contact_sciam: v.optional(v.string()),
   // null means "clear the field" (undefined is dropped by JSON serialization)
   owner_id: v.optional(v.union(v.string(), v.null())),
   responsible_ids: v.optional(v.array(v.string())),
@@ -173,11 +215,13 @@ export const create = mutation({
     await requireContactWrite(ctx);
     const userId = await requireUserId(ctx);
     assertMontant(args.montant);
+    await assertUsersExist(ctx, [args.owner_id, ...(args.responsible_ids ?? [])]);
     const stage = args.stage ?? "nouveau";
     const position = await getMaxPosition(ctx, stage);
     const { stage: _stage, ...rest } = args;
     const id = await ctx.db.insert("contacts", {
       ...rest,
+      entreprise_nom: await resolveEntrepriseNom(ctx, rest.entreprise_id),
       owner_id: rest.owner_id ?? userId,
       stage,
       position,
@@ -193,8 +237,9 @@ export const update = mutation({
   handler: async (ctx, args) => {
     await requireContactWrite(ctx);
     assertMontant(args.patch.montant);
+    await assertUsersExist(ctx, [args.patch.owner_id, ...(args.patch.responsible_ids ?? [])]);
     const existing = await ctx.db.get(args.id);
-    if (!existing || existing.deleted_at !== undefined) throw new Error("Contact introuvable");
+    if (!existing || existing.deleted_at !== undefined) throw new ConvexError("Contact introuvable");
     const nextPosition =
       args.patch.stage !== undefined && args.patch.stage !== existing.stage
         ? await getMaxPosition(ctx, args.patch.stage)
@@ -219,24 +264,29 @@ export const moveToStage = mutation({
   handler: async (ctx, args) => {
     await requireContactWrite(ctx);
     const contact = await ctx.db.get(args.id);
-    if (!contact || contact.deleted_at !== undefined) throw new Error("Contact introuvable");
+    if (!contact || contact.deleted_at !== undefined) throw new ConvexError("Contact introuvable");
 
     const colItems = await ctx.db
       .query("contacts")
-      .withIndex("by_stage_and_position", (q) => q.eq("stage", args.newStage))
+      .withIndex("by_active_stage_position", (q) =>
+        q.eq("deleted_at", undefined).eq("stage", args.newStage),
+      )
       .order("asc")
-      .filter((q) => q.eq(q.field("deleted_at"), undefined))
-      .collect();
+      .take(LIST_CAP);
 
-    const filtered = colItems.filter((c) => c._id !== args.id);
-    const idx = Math.max(0, Math.min(args.targetIndex, filtered.length));
-    filtered.splice(idx, 0, { ...contact, stage: args.newStage });
-
-    await Promise.all(
-      filtered.map((c, i) =>
-        ctx.db.patch(c._id, { stage: args.newStage, position: i, updated_at: Date.now() }),
-      ),
+    // Indexation fractionnaire : un déplacement = une écriture (cf. lib/position).
+    const others = colItems
+      .filter((c) => c._id !== args.id)
+      .map((c) => ({ id: c._id as string, position: c.position }));
+    const writes = movesFromPlan(
+      others,
+      args.targetIndex,
+      args.id,
+      "stage",
+      args.newStage,
+      Date.now(),
     );
+    await Promise.all(writes.map((w) => ctx.db.patch(w.id as Id<"contacts">, w.patch)));
     return null;
   },
 });
@@ -246,7 +296,7 @@ export const remove = mutation({
   handler: async (ctx, args) => {
     await requireContactWrite(ctx);
     const existing = await ctx.db.get(args.id);
-    if (!existing) throw new Error("Contact introuvable");
+    if (!existing) throw new ConvexError("Contact introuvable");
     await ctx.db.patch(args.id, { deleted_at: Date.now(), updated_at: Date.now() });
     return null;
   },

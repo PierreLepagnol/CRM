@@ -1,5 +1,5 @@
+import ExcelJS from "exceljs";
 import Papa from "papaparse";
-import * as XLSX from "xlsx";
 
 /**
  * Parsing client (lecture seule) d'un fichier d'import : CSV (délimiteur `;` ou
@@ -29,25 +29,46 @@ function parseCsv(file: File): Promise<ParsedFile> {
   });
 }
 
+/** Valeur de cellule ExcelJS → chaîne plate (gère texte riche, formule, date, lien). */
+function cellToString(value: ExcelJS.CellValue): string {
+  if (value === null || value === undefined) return "";
+  if (typeof value === "object") {
+    if (value instanceof Date) return value.toISOString();
+    if ("text" in value && typeof value.text === "string") return value.text; // hyperlink
+    if ("result" in value) return String(value.result ?? ""); // formule → résultat
+    if ("richText" in value && Array.isArray(value.richText))
+      return value.richText.map((t) => t.text).join("");
+    return "";
+  }
+  return String(value);
+}
+
 async function parseXlsx(file: File): Promise<ParsedFile> {
   const buffer = await file.arrayBuffer();
-  const workbook = XLSX.read(buffer, { type: "array" });
-  const sheet = workbook.Sheets[workbook.SheetNames[0]];
+  const workbook = new ExcelJS.Workbook();
+  await workbook.xlsx.load(buffer);
+  const sheet = workbook.worksheets[0];
   if (!sheet) return { headers: [], rows: [] };
-  const matrix = XLSX.utils.sheet_to_json<unknown[]>(sheet, {
-    header: 1,
-    blankrows: false,
-    defval: "",
-  });
-  if (matrix.length === 0) return { headers: [], rows: [] };
-  const headers = (matrix[0] as unknown[]).map((h) => String(h ?? "").trim());
-  const rows = matrix.slice(1).map((arr) => {
-    const cells = arr as unknown[];
-    const row: Record<string, string> = {};
+
+  // Row.values est indexé à partir de 1 (l'index 0 est vide).
+  const headerCells = (sheet.getRow(1).values as ExcelJS.CellValue[]) ?? [];
+  const headers = headerCells.slice(1).map((h) => cellToString(h).trim());
+  if (headers.every((h) => h.length === 0)) return { headers: [], rows: [] };
+
+  const rows: Record<string, string>[] = [];
+  sheet.eachRow((row, rowNumber) => {
+    if (rowNumber === 1) return; // en-têtes
+    const cells = (row.values as ExcelJS.CellValue[]) ?? [];
+    const record: Record<string, string> = {};
+    let hasValue = false;
     headers.forEach((h, i) => {
-      if (h.length > 0) row[h] = String(cells[i] ?? "");
+      if (h.length === 0) return;
+      const val = cellToString(cells[i + 1]);
+      record[h] = val;
+      if (val.length > 0) hasValue = true;
     });
-    return row;
+    if (hasValue) rows.push(record);
   });
+
   return { headers: headers.filter((h) => h.length > 0), rows };
 }

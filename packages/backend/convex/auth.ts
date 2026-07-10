@@ -76,6 +76,11 @@ export { createAuth };
 export const getCurrentUser = query({
   args: {},
   handler: async (ctx) => {
-    return await authComponent.safeGetAuthUser(ctx);
+    // DTO projeté (pas le document better-auth brut) : seuls les champs
+    // consommés par le front (id, nom, email, image).
+    const user = await authComponent.safeGetAuthUser(ctx);
+    if (!user) return null;
+    const u = user as { _id: string; name?: string; email?: string; image?: string };
+    return { _id: u._id, name: u.name ?? "", email: u.email ?? "", image: u.image };
   },
 });

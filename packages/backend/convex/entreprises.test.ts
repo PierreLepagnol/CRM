@@ -46,7 +46,9 @@ describe("entreprises : index de recherche et de déduplication", () => {
     const hit = await t.run((ctx) =>
       ctx.db
         .query("entreprises")
-        .withIndex("by_nom_normalise", (q) => q.eq("nom_normalise", norm))
+        .withIndex("by_active_nom_normalise", (q) =>
+          q.eq("deleted_at", undefined).eq("nom_normalise", norm),
+        )
         .first(),
     );
 

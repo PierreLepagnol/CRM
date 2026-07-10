@@ -28,7 +28,11 @@ import { toast } from "sonner";
 
 import { AppShell } from "@/components/app-shell";
 import { userInitials } from "@/components/user-picker";
-import type { PageKey, RoleKey } from "@/lib/use-access";
+import {
+  DEFAULT_ROLE_PAGES,
+  type PageKey,
+  type RoleKey,
+} from "@CRM-APP/backend/convex/lib/validators";
 
 const ROLES: { id: RoleKey; label: string }[] = [
   { id: "admin", label: "Administrateur" },
@@ -39,15 +43,10 @@ const ROLES: { id: RoleKey; label: string }[] = [
 const PAGES: { id: PageKey; label: string }[] = [
   { id: "pipeline", label: "Pipeline" },
   { id: "contacts", label: "Contacts" },
+  { id: "entreprises", label: "Entreprises" },
   { id: "projets", label: "Projets" },
   { id: "admin", label: "Administration" },
 ];
-
-const DEFAULT_ROLE_PAGES: Record<RoleKey, PageKey[]> = {
-  admin: ["pipeline", "contacts", "projets", "admin"],
-  commercial: ["pipeline", "contacts"],
-  lecteur: ["pipeline"],
-};
 
 export default function AdminPage() {
   return (

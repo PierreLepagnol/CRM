@@ -5,9 +5,9 @@ import type { MutationCtx, QueryCtx } from "./_generated/server";
 import { query } from "./_generated/server";
 import {
   allowedPagesFromRows,
-  canAccessPage,
-  canReadContacts,
-  canWriteContacts,
+  decideContactRead,
+  decideContactWrite,
+  decidePageAccess,
   resolveRole,
   type RolePermissionRow,
 } from "./lib/accessLogic";
@@ -29,7 +29,8 @@ export async function getCurrentAppUser(ctx: Ctx) {
 
 /** Toutes les lignes `role_permissions` (petite table, ≤ nb de rôles). */
 async function getRolePermissionRows(ctx: Ctx): Promise<RolePermissionRow[]> {
-  const rows = await ctx.db.query("role_permissions").collect();
+  // Bornée par le domaine (une ligne par rôle) ; take de sûreté quand même.
+  const rows = await ctx.db.query("role_permissions").take(20);
   return rows.map((r) => ({
     role: r.role as RoleKey,
     pages: r.pages as PageKey[],
@@ -63,15 +64,17 @@ export async function hasPageAccess(
   page: PageKey,
 ): Promise<boolean | null> {
   const c = await currentRoleContext(ctx);
-  if (!c) return null;
-  return canAccessPage(c.role, page, c.rows);
+  const outcome = decidePageAccess(c?.role ?? null, page, c?.rows ?? []);
+  if (outcome === "unauthenticated") return null;
+  return outcome === "allowed";
 }
 
 /** Lève "Accès refusé" si la page n'est pas autorisée pour le rôle courant. */
 export async function requirePageAccess(ctx: Ctx, page: PageKey): Promise<void> {
   const c = await currentRoleContext(ctx);
-  if (!c) throw new ConvexError("Non authentifié");
-  if (!canAccessPage(c.role, page, c.rows)) throw new ConvexError("Accès refusé");
+  const outcome = decidePageAccess(c?.role ?? null, page, c?.rows ?? []);
+  if (outcome === "unauthenticated") throw new ConvexError("Non authentifié");
+  if (outcome === "denied") throw new ConvexError("Accès refusé");
 }
 
 /**
@@ -80,16 +83,18 @@ export async function requirePageAccess(ctx: Ctx, page: PageKey): Promise<void> 
  */
 export async function guardContactRead(ctx: Ctx): Promise<boolean> {
   const c = await currentRoleContext(ctx);
-  if (!c) return false;
-  if (!canReadContacts(c.role, c.rows)) throw new ConvexError("Accès refusé");
+  const outcome = decideContactRead(c?.role ?? null, c?.rows ?? []);
+  if (outcome === "unauthenticated") return false;
+  if (outcome === "denied") throw new ConvexError("Accès refusé");
   return true;
 }
 
 /** Écriture des contacts : nécessite l'accès à la page Contacts. */
 export async function requireContactWrite(ctx: Ctx): Promise<void> {
   const c = await currentRoleContext(ctx);
-  if (!c) throw new ConvexError("Non authentifié");
-  if (!canWriteContacts(c.role, c.rows)) throw new ConvexError("Accès refusé");
+  const outcome = decideContactWrite(c?.role ?? null, c?.rows ?? []);
+  if (outcome === "unauthenticated") throw new ConvexError("Non authentifié");
+  if (outcome === "denied") throw new ConvexError("Accès refusé");
 }
 
 /** Lève sauf si l'utilisateur courant est admin. */
@@ -104,7 +109,7 @@ export const listRolePermissions = query({
   args: {},
   handler: async (ctx) => {
     await requireAdmin(ctx);
-    const rows = await ctx.db.query("role_permissions").collect();
+    const rows = await ctx.db.query("role_permissions").take(20);
     return rows.map((r) => ({ role: r.role, pages: r.pages }));
   },
 });

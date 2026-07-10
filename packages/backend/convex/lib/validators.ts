@@ -1,11 +1,16 @@
-import { v } from "convex/values";
+import { ConvexError, v } from "convex/values";
 
 export const timestampMs = v.number();
 export const userIdString = v.string();
 
+// ponytail: plafond de lecture des listes (kanban/tableaux). Borne les
+// `.collect()` non bornés (guideline Convex) sans introduire de pagination —
+// surdimensionné pour un CRM interne. Passer à `.paginate()` si on dépasse.
+export const LIST_CAP = 2000;
+
 export function assertTimestampMs(value: number, field: string) {
   if (!Number.isFinite(value) || value < 0) {
-    throw new Error(`${field} doit être un timestamp epoch milliseconds positif`);
+    throw new ConvexError(`${field} doit être un timestamp epoch milliseconds positif`);
   }
 }
 
@@ -16,7 +21,7 @@ export function assertOptionalTimestampMs(value: number | undefined, field: stri
 export function assertMontant(value: number | undefined) {
   if (value === undefined) return;
   if (!Number.isFinite(value) || value < 0) {
-    throw new Error("Le montant doit être un nombre positif ou nul");
+    throw new ConvexError("Le montant doit être un nombre positif ou nul");
   }
 }
 
@@ -79,15 +84,6 @@ export const pageKey = v.union(
 
 export type RoleKey = "admin" | "commercial" | "lecteur";
 export type PageKey = "pipeline" | "contacts" | "entreprises" | "projets" | "admin";
-
-export const ALL_ROLES: RoleKey[] = ["admin", "commercial", "lecteur"];
-export const ALL_PAGES: PageKey[] = [
-  "pipeline",
-  "contacts",
-  "entreprises",
-  "projets",
-  "admin",
-];
 
 /**
  * Pages autorisées par défaut pour chaque rôle. Sert de seed pour
