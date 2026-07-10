@@ -4,8 +4,11 @@ import { api } from "@CRM-APP/backend/convex/_generated/api";
 import { useConvexAuth, useMutation, useQuery } from "convex/react";
 import { useEffect, useRef } from "react";
 
-export type PageKey = "pipeline" | "contacts" | "entreprises" | "projets" | "admin";
-export type RoleKey = "admin" | "commercial" | "lecteur";
+export type {
+  PageKey,
+  RoleKey,
+} from "@CRM-APP/backend/convex/lib/validators";
+import type { PageKey, RoleKey } from "@CRM-APP/backend/convex/lib/validators";
 
 /**
  * Source de vérité côté front pour le contrôle d'accès basé sur le rôle.
