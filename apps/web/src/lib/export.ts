@@ -1,8 +1,11 @@
 type CsvValue = string | number | boolean | null | undefined;
 
-function csvEscape(value: CsvValue) {
+export function csvEscape(value: CsvValue) {
   if (value === null || value === undefined) return "";
-  const raw = String(value);
+  let raw = String(value);
+  // Neutralise l'injection de formule tableur (=, +, -, @, tab, CR en tête) :
+  // Excel exécuterait sinon un nom de contact malveillant comme une formule.
+  if (/^[=+\-@\t\r]/.test(raw)) raw = "'" + raw;
   if (/[";,\n\r]/.test(raw)) return `"${raw.replace(/"/g, '""')}"`;
   return raw;
 }
